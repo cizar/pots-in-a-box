@@ -1,22 +1,22 @@
-/* main.c — wires pbx_step (pure logic, tested on the host) to the HAL.
+/* main.c — wires pots_step (pure logic, tested on the host) to the HAL.
  * 1 ms tick. The watchdog resets the chip if the loop hangs. */
 #include <avr/wdt.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include "hal.h"
-#include "pbx.h"
+#include "pots.h"
 
 int main(void) {
-    pbx_t pbx;
-    pbx_inputs_t in;
-    pbx_outputs_t out;
+    pots_t pots;
+    pots_inputs_t in;
+    pots_outputs_t out;
     uint16_t last_f1[2] = { 0, 0 }, last_f2[2] = { 0, 0 };
 
     /* The watchdog stays enabled after a watchdog reset: turn it off first. */
     MCUSR = 0;
     wdt_disable();
 
-    pbx_init(&pbx);
+    pots_init(&pots);
     hal_init();
     wdt_enable(WDTO_250MS);
 
@@ -31,7 +31,7 @@ int main(void) {
         in.dtmf_code = hal_dtmf_code();
         in.country = hal_country();
 
-        pbx_step(&pbx, &in, &out);
+        pots_step(&pots, &in, &out);
 
         for (uint8_t l = 0; l < 2; l++) {
             if (out.f1[l] != last_f1[l] || out.f2[l] != last_f2[l]) {

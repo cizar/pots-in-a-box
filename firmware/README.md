@@ -1,4 +1,4 @@
-# Firmware PBX 2 líneas
+# Firmware de POTS in a box (central telefónica de 2 líneas)
 
 ATmega328P con cristal de 16 MHz, en C99 con avr-gcc. Sin Arduino.
 
@@ -6,7 +6,7 @@ ATmega328P con cristal de 16 MHz, en C99 con avr-gcc. Sin Arduino.
 
 ```sh
 make test     # pruebas de la lógica en la PC (cc)
-make          # build/pbx.hex
+make          # build/pots.hex
 make size     # uso de flash y RAM
 make fuses    # una sola vez por chip: cristal 16 MHz full swing, BOD 4,3 V (lfuse F7, hfuse D9, efuse FC)
 make flash    # graba por ISP
@@ -25,7 +25,7 @@ El programador por defecto es `usbasp`. Se cambia con `make flash PROGRAMMER=avr
 | `src/cadence.c` | cadencias on/off |
 | `src/signals.c` | estado de llamada → frecuencias y ring con cadencia |
 | `src/dds.c` | síntesis de 1 o 2 senos para PWM |
-| `src/pbx.c` | un tick de 1 ms: entradas → detección → lógica → salidas (probado en la PC) |
+| `src/pots.c` | un tick de 1 ms: entradas → detección → lógica → salidas (probado en la PC) |
 | `src/hal_avr.c`, `src/main.c` | hardware, watchdog y bucle principal (solo AVR) |
 
 Los módulos puros no incluyen `<avr/*>` y se prueban con `make test`.

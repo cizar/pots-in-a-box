@@ -1,11 +1,11 @@
-# PBX de 2 líneas para módems retro — Diseño
+# POTS in a box: central telefónica de 2 líneas para módems retro — Diseño
 
 Fecha: 2026-11-13
 Estado: listo para aprobación
 
 ## 1. Intención
 
-Una central telefónica mínima (PBX) de **2 líneas** para que computadoras retro con módem
+Una central telefónica analógica mínima (POTS, *Plain Old Telephone Service*) de **2 líneas** para que computadoras retro con módem
 telefónico se conecten entre sí sin una línea real. Caso típico: una PC corriendo un BBS con
 el módem en auto-atención, y otra computadora (por ejemplo una Commodore 64 con su módem, o
 una PC vieja) que la llama.

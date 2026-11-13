@@ -1,7 +1,7 @@
-#include "pbx.h"
+#include "pots.h"
 #include "dtmf.h"
 
-void pbx_init(pbx_t *p) {
+void pots_init(pots_t *p) {
     hook_init(&p->hook[0]);
     hook_init(&p->hook[1]);
     call_init(&p->call);
@@ -11,7 +11,7 @@ void pbx_init(pbx_t *p) {
     p->dtmf_sel = 0;
 }
 
-void pbx_step(pbx_t *p, const pbx_inputs_t *in, pbx_outputs_t *out) {
+void pots_step(pots_t *p, const pots_inputs_t *in, pots_outputs_t *out) {
     /* 1. Hook and pulses; the loop is ignored while the ring was on
      *    (previous tick). */
     for (uint8_t l = 0; l < 2; l++) {

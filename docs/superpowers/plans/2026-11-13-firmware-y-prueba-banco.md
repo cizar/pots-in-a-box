@@ -1,4 +1,4 @@
-# PBX 2 líneas — Firmware y prueba de banco: plan de implementación
+# POTS in a box (central telefónica de 2 líneas) — Firmware y prueba de banco: plan de implementación
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,7 +8,7 @@
 
 **Tech Stack:** C99, avr-gcc + avr-libc, avrdude (programador por ISP, por defecto `usbasp`), `cc` del sistema y `make` para las pruebas en la PC. Sin Arduino.
 
-**Spec:** `docs/superpowers/specs/2026-11-13-pbx-2-lineas-design.md`
+**Spec:** `docs/superpowers/specs/2026-11-13-pots-2-lineas-design.md`
 
 ## Global Constraints
 
@@ -70,7 +70,7 @@
   - `int8_t dtmf_code_to_digit(uint8_t q)`: `q` son los 4 bits Q4..Q1 del MT8870. Devuelve 1–9 para los códigos 1–9, `0` para el código 10, `DTMF_STAR` (10) para el 11, `DTMF_HASH` (11) para el 12, y `-1` para los códigos 0 y 13–15 (D, A, B, C) o si `q > 15`.
   - `Makefile`:
     - `make test` compila cada `tests/test_*.c` con los `src/*.c` puros (excluye `main.c` y `hal_avr.c`) en `build/host/`, los ejecuta todos y falla si alguno falla.
-    - `make` construye `build/pbx.hex` (se completa en la Task 7).
+    - `make` construye `build/pots.hex` (se completa en la Task 7).
     - `make flash` y `make fuses` usan `PROGRAMMER ?= usbasp`.
 
 - [ ] **Step 1: Escribir `tests/minitest.h` y `tests/test_dtmf.c`**
@@ -511,7 +511,7 @@ git commit -m "firmware: cadencias de tonos y ring por país"
 **Files:**
 - Create: `firmware/src/hal.h`, `firmware/src/hal_avr.c`, `firmware/src/main.c`
 - Modify: `firmware/Makefile` (objetivos `all`, `flash`, `fuses` y `size`)
-- Modify: `docs/superpowers/specs/2026-11-13-pbx-2-lineas-design.md` §7.1: la línea `ATmega PWM ─► filtro RC ─► inyección de tono en L1 / L2 (conmutable)` pasa a ser `ATmega PWM ×2 (OC0A→L1, OC0B→L2) ─► filtro RC ×2 ─► inyección de tono por línea`.
+- Modify: `docs/superpowers/specs/2026-11-13-pots-2-lineas-design.md` §7.1: la línea `ATmega PWM ─► filtro RC ─► inyección de tono en L1 / L2 (conmutable)` pasa a ser `ATmega PWM ×2 (OC0A→L1, OC0B→L2) ─► filtro RC ×2 ─► inyección de tono por línea`.
 - Create: `firmware/README.md` (cómo compilar, probar, grabar los fusibles y flashear; mapa de pines)
 
 **Interfaces:**
@@ -550,9 +550,9 @@ Fusibles: `lfuse 0xFF`, `hfuse 0xD9`, `efuse 0xFF` (cristal externo de 16 MHz, s
 
 Run: `make -C firmware clean all size`
 Expected:
-- se genera `firmware/build/pbx.hex` sin warnings;
+- se genera `firmware/build/pots.hex` sin warnings;
 - `avr-size` muestra Program menor a 32256 bytes y Data menor a 2048 bytes;
-- la ISR de Timer0 no tiene operaciones de punto flotante (`avr-objdump -d build/pbx.elf | grep -c __fp` da 0).
+- la ISR de Timer0 no tiene operaciones de punto flotante (`avr-objdump -d build/pots.elf | grep -c __fp` da 0).
 
 - [ ] **Step 3: Verificar que las pruebas en la PC siguen pasando**
 

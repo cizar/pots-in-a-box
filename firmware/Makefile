@@ -1,7 +1,7 @@
-# Firmware for the 2-line PBX (ATmega328P @ 16 MHz)
+# Firmware for POTS in a box, a 2-line analog telephone exchange (ATmega328P @ 16 MHz)
 #
 #   make test    run the logic tests on the host
-#   make         build/pbx.hex
+#   make         build/pots.hex
 #   make size    firmware size
 #   make fuses   write fuses: 16 MHz full-swing crystal, BOD 4.3 V
 #   make flash   flash the firmware over ISP
@@ -33,7 +33,7 @@ TEST_BINS = $(patsubst $(TESTS)/%.c,$(BUILD)/host/%,$(TEST_SRCS))
 
 .PHONY: all test size fuses flash clean
 
-all: $(BUILD)/pbx.hex
+all: $(BUILD)/pots.hex
 
 test: $(TEST_BINS)
 	@fail=0; for t in $(TEST_BINS); do ./$$t || fail=1; done; exit $$fail
@@ -42,21 +42,21 @@ $(BUILD)/host/%: $(TESTS)/%.c $(PURE_SRCS) $(wildcard $(SRC)/*.h) $(TESTS)/minit
 	@mkdir -p $(dir $@)
 	$(HOST_CC) $(HOST_CFLAGS) -o $@ $< $(PURE_SRCS) $(HOST_LIBS)
 
-$(BUILD)/pbx.elf: $(AVR_SRCS) $(wildcard $(SRC)/*.h)
+$(BUILD)/pots.elf: $(AVR_SRCS) $(wildcard $(SRC)/*.h)
 	@mkdir -p $(dir $@)
 	$(AVR_CC) $(AVR_CFLAGS) $(AVR_LDFLAGS) -o $@ $(AVR_SRCS)
 
-$(BUILD)/pbx.hex: $(BUILD)/pbx.elf
+$(BUILD)/pots.hex: $(BUILD)/pots.elf
 	avr-objcopy -O ihex -R .eeprom $< $@
 
-size: $(BUILD)/pbx.elf
+size: $(BUILD)/pots.elf
 	avr-size --format=avr --mcu=$(MCU) $< 2>/dev/null || avr-size $<
 
 fuses:
 	avrdude -c $(PROGRAMMER) -P $(PORT) -p m328p \
 	  -U lfuse:w:0xF7:m -U hfuse:w:0xD9:m -U efuse:w:0xFC:m
 
-flash: $(BUILD)/pbx.hex
+flash: $(BUILD)/pots.hex
 	avrdude -c $(PROGRAMMER) -P $(PORT) -p m328p -U flash:w:$<:i
 
 clean:
