@@ -109,7 +109,7 @@ desplazamiento, `CS` por ranura, backplane con edge connector 2×13 y placas de 
 
  nodo L1 ──[relé o llave de conexión]── nodo L2
  nodo L1/L2 ─► selector ─► MT8870 ─► ATmega   (escucha a la línea que marca)
- ATmega PWM ─► filtro RC ─► inyección de tono en L1 / L2 (conmutable)
+ ATmega PWM ×2 (OC0A→L1, OC0B→L2) ─► filtro RC ×2 ─► inyección de tono por línea
  llave AR/US ─► ATmega        LED PWR, LED LÍNEA ◄─ ATmega
 ```
 
