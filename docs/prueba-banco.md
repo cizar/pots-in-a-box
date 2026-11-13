@@ -24,6 +24,9 @@ El firmware es el de `firmware/`, sin cambios. Mapa de pines en `firmware/README
 Todos los valores son **de partida**: la idea de la prueba es ajustarlos. Todos los
 componentes son pasantes.
 
+Los esquemáticos se generan con `docs/schematics/make_schematics.py` (Schemdraw). Para
+regenerarlos: `pip install schemdraw matplotlib` y después `python3 docs/schematics/make_schematics.py`.
+
 ### 1.1 Alimentación
 
 ```
@@ -42,19 +45,11 @@ MOSFET externo de 100 V) se diseña después, con la `V_LINE` que salga de acá.
 
 ### 1.2 Alimentación de una línea (por cada línea)
 
-```
- V_LINE ── PTC 100 mA ──┬── colector  Q1 MJE340 (300 V, con disipador chico)
-                         │   base Q1 ── 10 kΩ 1/2 W ── V_LINE
-                         │              └─ colector Q2 BC546
-                         │   emisor Q1 ── R_SENSE 27 Ω ──┬── base Q2
-                         │                               │   emisor Q2 ─┐
-                         │                               └──────────────┴──► nodo TIP_FEED
- nodo TIP_FEED ──► NC del relé de ring ──► TIP (RJ11)
- RING (RJ11) ──► NC del relé de ring ──► nodo RING_RET
- nodo RING_RET ── LED del PC817 (ánodo) ── cátodo ──► GND
-                  1N4148 en antiparalelo con el LED (protege contra inversión)
- TVS bidireccional P6KE68CA entre TIP y RING, del lado del RJ11
-```
+![Alimentación de una línea: limitador de corriente, relé de ring en reposo, PC817 y TVS](schematics/line-feed.svg)
+
+El relé RL1 está dibujado **en reposo**: los dos polos tocan el contacto NC, y la línea queda
+alimentada por el limitador. Al activarse, los dos polos pasan a NO y la línea queda
+conectada a las salidas A y B del puente H (§1.3).
 
 - **Limitador de corriente:** Q1 conduce hasta que la caída en R_SENSE llega a unos 0,65 V.
   Con 27 Ω la corriente queda en unos **24 mA**. Para 30 mA usar 22 Ω; para 20 mA, 33 Ω.
@@ -73,25 +68,11 @@ En la prueba se usa **el mismo `V_LINE` como riel de ring**. Un puente H lo apli
 línea con polaridad alternada, así que a la línea llega una onda cuadrada de ±V_LINE, unos
 48 V rms a 48 V.
 
-```
- V_LINE ── R_BRIDGE 470 Ω 5 W ──┬──────────────┬──      (limita corto y conducción cruzada)
-                                 P1 IRF9540     P2 IRF9540
-                                 │              │
-                       salida A ─┤              ├─ salida B ──► NO del relé (lado TIP)
-                                 N1 IRF540      N2 IRF540     salida A ──► NO del relé (lado RING)
-                                 │              │
- GND ────────────────────────────┴──────────────┴──
- RING_DRIVE (PD4) ── 10 kΩ a GND (fija el nivel en reset y durante ISP)
-   PD4 ──► excita P1 y N2;  inversor BC547 (12 V) ──► excita P2 y N1
-   (el desplazador de cada P invierte: transistor encendido = gate a menos de V_LINE = P
-    encendido. Así PD4 en alto enciende P1 y N2, y el inversor enciende P2 y N1)
- Gates de los P (una red por cada P):
-   desplazador con BC546 (65 V) o MPSA42: colector ── 22 kΩ ── V_LINE,
-   zener de 12 V entre gate y fuente (Vgs < 20 V)
- Gates de los N: 10 kΩ entre gate y fuente (pull-down)
- Todas las gates: 220 Ω en serie con un 1N4148 en paralelo, cátodo hacia el driver
-   (carga lenta y descarga rápida: el MOSFET apaga antes de que prenda el otro)
-```
+![Puente H de ring: P1/P2 IRF9540, N1/N2 IRF540 y R_BRIDGE](schematics/ring-bridge.svg)
+
+Las gates se excitan así:
+
+![Excitación de las gates: pull-down de PD4, inversor BC547 y desplazador de gate de los P](schematics/ring-gate-drive.svg)
 
 - **Relé de ring:** DPDT con bobina de 12 V (por ejemplo, de la serie HK19F). Lo maneja una
   entrada del ULN2003A desde **PB0** (L1) o **PB1** (L2). El pin COM del ULN2003A va a 12 V
@@ -101,9 +82,19 @@ línea con polaridad alternada, así que a la línea llega una onda cuadrada de 
 - **R_BRIDGE está entre `V_LINE` y el lado alto del puente.** Así limita la corriente tanto
   si la línea está en corto como si P y N de la misma rama conducen a la vez (unos 100 mA
   como máximo a 48 V). Por eso no puede ir solo en la salida.
+- **Gates de los N:** cada una lleva 220 Ω en serie con un 1N4148 en paralelo (cátodo hacia
+  el driver), para que apague rápido y prenda lento, y 10 kΩ de gate a fuente como pull-down.
+- **Gates de los P:** cada una tiene su desplazador. Los 22 kΩ mantienen la gate en
+  `V_LINE` (P apagado). Cuando el BC546 conduce, baja la gate, y el zener de 12 V limita Vgs.
+  **La resistencia de 10 kΩ en serie es obligatoria:** sin ella, el zener conduciría
+  (48 − 12) / 220 ≈ 160 mA y se quemaría. Con 10 kΩ conduce unos 3,6 mA.
+- **El desplazador invierte:** BC546 encendido = P encendido. Por eso PD4 en alto enciende P1
+  y N2, y el inversor enciende P2 y N1.
+- **PD4 tiene un pull-down de 10 kΩ,** que fija el puente en un estado conocido durante el
+  reset y mientras se graba por ISP.
 - **Verificar con el osciloscopio**, sin línea conectada: medir la tensión sobre R_BRIDGE en
   cada cambio de fase. Si aparecen picos de conducción cruzada de más de unos microsegundos,
-  aumentar la resistencia de 220 Ω de las gates.
+  aumentar la resistencia de 220 Ω de las gates de los N.
 - Si a 48 V el Modem 1200 no detecta la ring, ver el plan B en §1.6.
 
 ### 1.4 Audio, tonos y DTMF (acople por capacitor)
@@ -170,9 +161,9 @@ Los componentes "por línea" se multiplican por 2. Los "compartidos" van una sol
 | 1 | RJ11 hembra pasante | por línea |
 | 2 | IRF540 | compartido (puente H) |
 | 2 | IRF9540 | compartido (puente H) |
-| 2 | BC546 o MPSA42 + 2 × 22 kΩ + 2 × zener de 12 V | compartido (gates de los P) |
-| 1 | BC547 + 10 kΩ + 1 kΩ | compartido (inversor de fase) |
-| 4 | resistencia de 220 Ω + 1N4148 | compartido (una por gate) |
+| 2 | BC546 o MPSA42 + 22 kΩ + zener de 12 V + 10 kΩ (serie) + 10 kΩ (base), por cada uno | compartido (desplazadores de P1 y P2) |
+| 1 | BC547 + 10 kΩ + 4,7 kΩ | compartido (inversor de fase) |
+| 2 | resistencia de 220 Ω + 1N4148 | compartido (gates de N1 y N2) |
 | 3 | resistencia de 10 kΩ | compartido (pull-down de PD4 y de las gates de los N) |
 | 1 | resistencia de 470 Ω 5 W | compartido (R_BRIDGE) |
 | 2 | relé chico con bobina de 12 V | compartido (unión L1–L2 y DTMF_SEL) |
@@ -191,7 +182,7 @@ Hay que cambiar estos componentes:
 |---|---|---|
 | Elevador | compartido con V_LINE | segundo elevador solo para la ring, de 70–90 V |
 | MOSFETs del puente | IRF540 / IRF9540 (100 V) | IRF640 / IRF9640 (200 V) |
-| Desplazadores de gate | BC546 / MPSA42, 22 kΩ | MPSA42 (300 V), 47 kΩ 1 W |
+| Desplazadores de gate | BC546 / MPSA42, 22 kΩ, 10 kΩ en serie | MPSA42 (300 V), 47 kΩ 1 W, 22 kΩ 1 W en serie |
 | R_BRIDGE | 470 Ω 5 W | 1 kΩ 10 W (unos 8 W en corto a 90 V) |
 | TVS de línea | P6KE68CA | P6KE120CA (la de 68 V conduciría con la ring y se quemaría) |
 | Capacitor de acople | 250 V | 250 V (alcanza) |
