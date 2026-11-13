@@ -9,8 +9,7 @@ void pots_init(pots_t *p) {
     call_init(&p->call);
     signals_init(&p->sig);
     p->ring_on_prev[0] = p->ring_on_prev[1] = false;
-    p->last_std = false;
-    p->dtmf_sel = 0;
+    p->last_std[0] = p->last_std[1] = false;
 }
 
 void pots_step(pots_t *p, const pots_inputs_t *in, pots_outputs_t *out) {
@@ -23,13 +22,15 @@ void pots_step(pots_t *p, const pots_inputs_t *in, pots_outputs_t *out) {
         else if (e.type == HOOK_EV_DIGIT) call_event(&p->call, l, CALL_EV_DIGIT);
     }
 
-    /* 2. DTMF: one digit per StD rising edge, for the owning line. */
-    if (in->dtmf_std && !p->last_std) {
-        int8_t line = call_outputs(&p->call).dtmf_line;
-        if (line >= 0 && dtmf_code_to_digit(in->dtmf_code) >= 0)
-            call_event(&p->call, (uint8_t)line, CALL_EV_DIGIT);
+    /* 2. DTMF: one MT8870 per line on a shared Q bus. A digit counts on the
+     *    StD rising edge, unless the other chip is also driving the bus. */
+    bool both = in->dtmf_std[0] && in->dtmf_std[1];
+    for (uint8_t l = 0; l < 2; l++) {
+        if (in->dtmf_std[l] && !p->last_std[l] && !both &&
+            dtmf_code_to_digit(in->dtmf_code) >= 0)
+            call_event(&p->call, l, CALL_EV_DIGIT);
+        p->last_std[l] = in->dtmf_std[l];
     }
-    p->last_std = in->dtmf_std;
 
     /* 3. Logic. */
     call_tick(&p->call);
@@ -46,7 +47,5 @@ void pots_step(pots_t *p, const pots_inputs_t *in, pots_outputs_t *out) {
     }
     out->ring_drive = s.ring_phase;
     out->link = o.link;
-    if (o.dtmf_line >= 0) p->dtmf_sel = (uint8_t)o.dtmf_line;
-    out->dtmf_sel = p->dtmf_sel;
     out->led_call = o.led_call;
 }

@@ -6,23 +6,14 @@
 
 static bool is_dialing(line_state_t s) { return s == LINE_DIALTONE || s == LINE_DIALING; }
 
-/* Changes a line's state and keeps track of which line owns the MT8870. */
 static void set_state(call_t *c, uint8_t l, line_state_t s) {
-    bool was = is_dialing(c->state[l]);
     c->state[l] = s;
     c->timer[l] = 0;
-    bool now = is_dialing(s);
-    if (now && c->dtmf_owner < 0) {
-        c->dtmf_owner = (int8_t)l;
-    } else if (was && !now && c->dtmf_owner == (int8_t)l) {
-        c->dtmf_owner = is_dialing(c->state[OTHER(l)]) ? (int8_t)OTHER(l) : -1;
-    }
 }
 
 void call_init(call_t *c) {
     c->state[0] = c->state[1] = LINE_IDLE;
     c->timer[0] = c->timer[1] = 0;
-    c->dtmf_owner = -1;
 }
 
 void call_event(call_t *c, uint8_t l, call_ev_t ev) {
@@ -97,7 +88,6 @@ call_outputs_t call_outputs(const call_t *c) {
     }
     out.link = c->state[0] == LINE_CONNECTED && c->state[1] == LINE_CONNECTED;
     out.led_call = out.link;
-    out.dtmf_line = c->dtmf_owner;
     return out;
 }
 

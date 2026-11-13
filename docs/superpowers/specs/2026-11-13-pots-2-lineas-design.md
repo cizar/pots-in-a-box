@@ -90,7 +90,8 @@ disponibilidad local de componentes y facilidad de armado.
 
 Se exploró hasta 8 líneas: un MT8870 por línea, buses de audio con CD4051, registros de
 desplazamiento, `CS` por ranura, backplane con edge connector 2×13 y placas de 2 líneas. Se
-**posterga**. La versión actual es una placa única de 2 líneas con un solo MT8870.
+**posterga**. La versión actual es una placa única de 2 líneas, con **un MT8870 por línea**
+(decisión del usuario, pensando en la modularización futura: cada línea es un bloque completo).
 
 ## 7. Diseño
 
@@ -108,7 +109,8 @@ desplazamiento, `CS` por ranura, backplane con edge connector 2×13 y placas de 
  RJ11 L2 ─  (igual)                                   ─► nodo de audio L2
 
  nodo L1 ──[relé o llave de conexión]── nodo L2
- nodo L1/L2 ─► selector ─► MT8870 ─► ATmega   (escucha a la línea que marca)
+ nodo L1 ─► MT8870 L1 ─┬─ Q1–Q4 (bus compartido) ─► ATmega
+ nodo L2 ─► MT8870 L2 ─┘  StD_L1, StD_L2 ─► ATmega   (TOE de cada chip unido a su StD)
  ATmega PWM ×2 (OC0A→L1, OC0B→L2) ─► filtro RC ×2 ─► inyección de tono por línea
  llave AR/US ─► ATmega        LED PWR, LED LÍNEA ◄─ ATmega
 ```
@@ -122,10 +124,12 @@ Cada instancia expone hacia el resto de la placa:
 | `OFFHOOK` | sale | lógica: la línea está descolgada (y los pulsos de marcado) |
 | `RING_EN` | entra | activa el relé de ring de esa línea (vía ULN2003A) |
 | `AUDIO` | bidireccional | nodo de audio después del acople |
+| `DTMF_STD` | sale | dígito DTMF válido en el MT8870 de esa línea |
+| `DTMF_Q1..Q4` | sale (tri-state) | dígito, solo mientras `DTMF_STD` está en alto; bus compartido entre líneas |
 | `V_LINE`, `RING_A/B`, `GND`, `+5V` | alimentación | |
 
 Contenido: RJ11, limitador de corriente de lazo, optoacoplador de descolgado, relé de ring,
-acople de audio, protección (por ejemplo TVS o varistor y fusible PTC en la línea).
+acople de audio, MT8870 propio, protección (por ejemplo TVS o varistor y fusible PTC en la línea).
 
 Objetivo: que en el futuro una placa con SLIC integrado pueda reemplazar esta hoja con la
 misma interfaz.
@@ -161,9 +165,13 @@ misma interfaz.
 
 ### 7.6 Marcado
 
-- **DTMF:** un solo MT8870 compartido, que escucha el nodo de audio de la línea que está
-  marcando a través de un selector (relé o CD4066). Con 2 líneas hay una sola llamada
-  posible, así que alcanza.
+- **DTMF:** un MT8870 por línea, sin selector. Las salidas Q1–Q4 comparten un bus hacia el
+  ATmega; el `TOE` de cada chip va unido a su propio `StD`, así cada chip ocupa el bus solo
+  mientras tiene un dígito válido. Cuesta un solo pin más que un MT8870 (6 en total). Si los
+  dos `StD` están en alto a la vez, el dígito se descarta (con 2 líneas, la segunda recibe
+  ocupado de todas formas). Resistencias de 1 kΩ en serie en las salidas Q evitan daños si
+  los dos chips manejan el bus a la vez. (La primera versión usaba un solo MT8870 con
+  selector; se cambió para que cada línea sea un bloque completo.)
 - **Pulsos:** el ATmega decodifica las aperturas del lazo leyendo `OFFHOOK`, a unos 10 pps.
 
 ### 7.7 Tonos
@@ -183,7 +191,7 @@ misma interfaz.
 ### 7.8 Lógica de llamada (firmware)
 
 1. **Reposo:** las dos líneas colgadas, LED LÍNEA apagado.
-2. **Descuelgue de A** (con antirrebote): A recibe tono de invitación. El MT8870 y el
+2. **Descuelgue de A** (con antirrebote): A recibe tono de invitación. El MT8870 de A y el
    decodificador de pulsos escuchan A.
 3. **Primer dígito:** se corta el tono de invitación. Se siguen aceptando dígitos.
 4. **Fin del número:** cuando pasa un tiempo sin dígitos nuevos (propuesta: unos 2–3 s), se
@@ -245,7 +253,6 @@ Lo que salga de la prueba ajusta V_LINE, la tensión de ring y la opción de aco
 
 - El circuito concreto de cada bloque (topología de los elevadores, del limitador de
   corriente, del puente H y de la protección) y los valores de los componentes.
-- Cómo conmutar el MT8870 y la inyección de tono entre líneas (relé o CD4066).
 - Cristal y frecuencia del ATmega. Sugerencia: 16 MHz, para que los tonos tengan buena
   precisión.
 - Cadena de herramientas del firmware. Sugerencia: avr-gcc con Makefile, como en el otro
@@ -258,3 +265,9 @@ Lo que salga de la prueba ajusta V_LINE, la tensión de ring y la opción de aco
 - Llegar a 8 líneas con la topología explorada en §6.3, reutilizando la hoja de línea tipo
   SLIC.
 - Opcionalmente, una placa de línea con SLIC integrado si se consigue.
+- **DTMF con más líneas:** cada placa de línea lleva su MT8870, con `TOE` unido a `StD` y bus
+  Q compartido. Con 4 líneas alcanzan 4 + 4 pines. Una alternativa más barata es un "pool"
+  de 2 MT8870 compartidos, cada uno con su selector (CD4051/CD4052) en los nodos de audio
+  protegidos: dos líneas marcan a la vez, que es el máximo útil con 2 llamadas simultáneas.
+  Mezclar todas las líneas en un solo MT8870 no sirve: el audio de una llamada en curso tapa
+  o falsea los tonos de la línea que marca.

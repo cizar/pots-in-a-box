@@ -113,9 +113,11 @@ Las gates se excitan así:
                             47 nF     47 nF
                               GND      GND            (filtro RC de 2 polos, ~3 kHz)
 
- nodo protegido L1 ─┐
-                    ├── DTMF_SEL: relé chico de 12 V (ULN2003A desde PD7) ── 100 nF ── 100 kΩ ── IN- del MT8870
- nodo protegido L2 ─┘                               (circuito de entrada de una sola terminal de la hoja de datos)
+ nodo protegido (de cada línea) ── 100 nF ── 100 kΩ ── IN- del MT8870 de esa línea
+                                   (circuito de entrada de una sola terminal de la hoja de datos)
+
+ MT8870 L1: Q1–Q4 ── 1 kΩ c/u ──┬── PC2–PC5 (bus compartido)    StD ──► PD2, y StD ──► TOE
+ MT8870 L2: Q1–Q4 ── 1 kΩ c/u ──┘                               StD ──► PD7, y StD ──► TOE
 ```
 
 - **El capacitor de acople va del lado NC del relé de ring.** Así nunca le llega la ring y
@@ -123,14 +125,20 @@ Las gates se excitan así:
 - **Del lado de la lógica, todo queda protegido por la resistencia de 1 kΩ y los dos diodos
   a +5 V y GND.** Así los escalones de continua de cada descuelgue, cuelgue y pulso (unos
   ±40 V) no llegan al MT8870 ni a los pines del ATmega.
-- **El DTMF_SEL es un relé, no un CD4066,** y la resistencia fija de 4,7 kΩ en serie con el
-  trimmer protege a PD5 y PD6 aunque el trimmer se ponga en cero.
+- **Un MT8870 por línea, sin selector.** El `TOE` de cada chip va unido a su `StD`: cada
+  chip maneja el bus Q solo mientras tiene un dígito. Las resistencias de 1 kΩ en serie
+  protegen a los dos chips si marcan exactamente al mismo tiempo; en ese caso el firmware
+  descarta el dígito.
+- La resistencia fija de 4,7 kΩ en serie con el trimmer protege a PD5 y PD6 aunque el
+  trimmer se ponga en cero.
 - La unión L1–L2 va del lado línea, antes de la protección, para que el audio de los módems
   pase sin atenuación.
 - El nivel del tono se ajusta con el trimmer. Hay que empezar alto, en unos 47 kΩ, y bajarlo
   hasta que el módem detecte el tono de invitación, para no saturar la línea.
 - **MT8870:** usar el circuito de entrada de una sola terminal y el cristal de 3,579545 MHz
-  de la hoja de datos. Las salidas Q1–Q4 van a PC2–PC5 y StD a PD2.
+  de la hoja de datos. Los dos chips pueden compartir un solo cristal: la hoja de datos
+  muestra cómo la salida OSC2 de uno alimenta la entrada OSC1 del otro. Confirmarlo en la
+  prueba; si no arranca bien, usar un cristal por chip.
 - Para la alternativa con **transformador 600:600**: reemplazar el capacitor de 2,2 µF por el
   bobinado de línea del transformador, en serie con un capacitor de 1 µF 250 V para que no
   pase la continua. El otro bobinado va al nodo de audio. La protección de 1 kΩ y los
@@ -145,8 +153,10 @@ Los componentes "por línea" se multiplican por 2. Los "compartidos" van una sol
 | 1 | Módulo elevador ajustable de 12 V a ≥ 50 V | compartido; solo para la prueba |
 | 1 | 7805 + capacitores de 100 nF y 10 µF | compartido |
 | 1 | ATmega328P DIP-28 + cristal de 16 MHz + 2 × 22 pF | compartido |
-| 1 | MT8870 DIP-18 + cristal de 3,579545 MHz + componentes de entrada de la hoja de datos | compartido |
-| 1 | ULN2003A DIP-16 | compartido (ring L1, ring L2, unión, DTMF_SEL) |
+| 1 | MT8870 DIP-18 + componentes de entrada de la hoja de datos | por línea |
+| 1 | cristal de 3,579545 MHz | compartido entre los dos MT8870 (o uno por chip) |
+| 4 | resistencia de 1 kΩ | por línea (salidas Q1–Q4 del MT8870) |
+| 1 | ULN2003A DIP-16 | compartido (ring L1, ring L2, unión) |
 | 1 | MJE340 + disipador chico | por línea |
 | 1 | BC546 | por línea (limitador) |
 | 1 | resistencia de 27 Ω (y 22 Ω y 33 Ω para probar) | por línea |
@@ -166,7 +176,7 @@ Los componentes "por línea" se multiplican por 2. Los "compartidos" van una sol
 | 2 | resistencia de 220 Ω + 1N4148 | compartido (gates de N1 y N2) |
 | 3 | resistencia de 10 kΩ | compartido (pull-down de PD4 y de las gates de los N) |
 | 1 | resistencia de 470 Ω 5 W | compartido (R_BRIDGE) |
-| 2 | relé chico con bobina de 12 V | compartido (unión L1–L2 y DTMF_SEL) |
+| 1 | relé chico con bobina de 12 V | compartido (unión L1–L2) |
 | 1 | resistencia de 100 kΩ 1/2 W + capacitor de 100 µF 63 V | compartido (riel V_LINE) |
 | 1 | LED + resistencia de 470 Ω | compartido (LED_CALL en PD3) |
 | 1 | transformador 600:600 (opcional) | solo si falla la validación 4 |

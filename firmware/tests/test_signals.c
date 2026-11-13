@@ -5,7 +5,7 @@
 #include "../src/signals.h"
 
 static call_outputs_t none(void) {
-    call_outputs_t o; memset(&o, 0, sizeof o); o.dtmf_line = -1; return o;
+    call_outputs_t o; memset(&o, 0, sizeof o); return o;
 }
 
 TEST(ar_ringback_cadence) {

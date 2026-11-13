@@ -27,14 +27,12 @@ typedef enum {
 typedef struct {
     line_state_t state[2];
     uint16_t timer[2];   /* ms in the current state */
-    int8_t dtmf_owner;   /* line the MT8870 listens to, or -1 */
 } call_t;
 
 typedef struct {
     tone_id_t tone[2];
     bool ring[2];        /* logical, without cadence */
     bool link;
-    int8_t dtmf_line;    /* -1: none */
     bool led_call;
 } call_outputs_t;
 

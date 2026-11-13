@@ -30,11 +30,12 @@ void hal_init(void) {
     DDRB |= _BV(PB0) | _BV(PB1) | _BV(PB2);
     PORTB &= ~(_BV(PB0) | _BV(PB1) | _BV(PB2));
 
-    /* Outputs: PD3 LED_CALL, PD4 RING_DRIVE, PD5/PD6 tones, PD7 DTMF_SEL.
-     * Inputs: PD0 COUNTRY_SW (pull-up), PD2 DTMF_STD. PD1 reserved for UART TX. */
-    DDRD |= _BV(PD3) | _BV(PD4) | _BV(PD5) | _BV(PD6) | _BV(PD7);
-    DDRD &= ~(_BV(PD0) | _BV(PD2));
-    PORTD = (PORTD & ~(_BV(PD3) | _BV(PD4) | _BV(PD7))) | _BV(PD0);
+    /* Outputs: PD3 LED_CALL, PD4 RING_DRIVE, PD5/PD6 tones.
+     * Inputs: PD0 COUNTRY_SW (pull-up), PD2 DTMF_STD_L1, PD7 DTMF_STD_L2.
+     * PD1 reserved for UART TX. */
+    DDRD |= _BV(PD3) | _BV(PD4) | _BV(PD5) | _BV(PD6);
+    DDRD &= ~(_BV(PD0) | _BV(PD2) | _BV(PD7));
+    PORTD = (PORTD & ~(_BV(PD3) | _BV(PD4) | _BV(PD2) | _BV(PD7))) | _BV(PD0);
 
     /* Inputs: PC0/PC1 OFFHOOK (pull-up), PC2-PC5 MT8870 Q1-Q4. */
     DDRC &= ~0x3F;
@@ -56,7 +57,7 @@ void hal_init(void) {
 }
 
 bool hal_loop_closed(uint8_t line) { return !(PINC & _BV(line ? PC1 : PC0)); }
-bool hal_dtmf_std(void) { return (PIND & _BV(PD2)) != 0; }
+bool hal_dtmf_std(uint8_t line) { return (PIND & _BV(line ? PD7 : PD2)) != 0; }
 uint8_t hal_dtmf_code(void) { return (uint8_t)((PINC >> PC2) & 0x0F); }
 country_t hal_country(void) { return (PIND & _BV(PD0)) ? COUNTRY_AR : COUNTRY_US; }
 
@@ -68,7 +69,6 @@ static void pin(volatile uint8_t *port, uint8_t bit, bool on) {
 void hal_set_ring_en(uint8_t line, bool on) { pin(&PORTB, line ? PB1 : PB0, on); }
 void hal_set_ring_drive(bool phase) { pin(&PORTD, PD4, phase); }
 void hal_set_link(bool on) { pin(&PORTB, PB2, on); }
-void hal_set_dtmf_sel(uint8_t line) { pin(&PORTD, PD7, line != 0); }
 void hal_set_led_call(bool on) { pin(&PORTD, PD3, on); }
 
 void hal_set_tones(uint8_t line, uint16_t f1_hz, uint16_t f2_hz) {

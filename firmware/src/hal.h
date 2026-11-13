@@ -12,14 +12,13 @@
 void hal_init(void);
 
 bool hal_loop_closed(uint8_t line);  /* OFFHOOK_L1/L2, active low */
-bool hal_dtmf_std(void);
-uint8_t hal_dtmf_code(void);         /* Q4..Q1 */
+bool hal_dtmf_std(uint8_t line);      /* DTMF_STD_L1/L2 */
+uint8_t hal_dtmf_code(void);         /* shared Q4..Q1 bus */
 country_t hal_country(void);
 
 void hal_set_ring_en(uint8_t line, bool on);
 void hal_set_ring_drive(bool phase);
 void hal_set_link(bool on);
-void hal_set_dtmf_sel(uint8_t line);
 void hal_set_led_call(bool on);
 void hal_set_tones(uint8_t line, uint16_t f1_hz, uint16_t f2_hz);
 

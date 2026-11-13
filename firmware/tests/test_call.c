@@ -18,12 +18,11 @@ TEST(idle_outputs) {
     call_t c; call_init(&c); call_outputs_t o = call_outputs(&c);
     CHECK_EQ(o.tone[0], TONE_NONE); CHECK_EQ(o.tone[1], TONE_NONE);
     CHECK(!o.ring[0]); CHECK(!o.ring[1]); CHECK(!o.link); CHECK(!o.led_call);
-    CHECK_EQ(o.dtmf_line, -1);
 }
 TEST(offhook_gives_dialtone) {
     call_t c; call_init(&c); call_event(&c, 0, CALL_EV_OFF);
     call_outputs_t o = call_outputs(&c);
-    CHECK_EQ(o.tone[0], TONE_DIAL); CHECK_EQ(o.dtmf_line, 0);
+    CHECK_EQ(o.tone[0], TONE_DIAL);
     CHECK_EQ(call_line_state(&c, 0), LINE_DIALTONE);
 }
 TEST(digit_timeout_boundary) {
@@ -36,7 +35,6 @@ TEST(digit_timeout_boundary) {
     call_outputs_t o = call_outputs(&c);
     CHECK_EQ(o.tone[0], TONE_RINGBACK); CHECK(o.ring[1]); CHECK(!o.ring[0]);
     CHECK_EQ(call_line_state(&c, 1), LINE_RINGING);
-    CHECK_EQ(o.dtmf_line, -1);
 }
 TEST(each_digit_restarts_timer) {
     call_t c; call_init(&c);
@@ -48,7 +46,7 @@ TEST(answer_connects) {
     call_t c; to_connected(&c); call_outputs_t o = call_outputs(&c);
     CHECK(o.link); CHECK(o.led_call);
     CHECK_EQ(o.tone[0], TONE_NONE); CHECK_EQ(o.tone[1], TONE_NONE);
-    CHECK(!o.ring[0]); CHECK(!o.ring[1]); CHECK_EQ(o.dtmf_line, -1);
+    CHECK(!o.ring[0]); CHECK(!o.ring[1]);
     CHECK_EQ(call_line_state(&c, 0), LINE_CONNECTED);
     CHECK_EQ(call_line_state(&c, 1), LINE_CONNECTED);
 }
@@ -65,13 +63,12 @@ TEST(called_offhook_gives_busy) {
     ticks(&c, DIGIT_TIMEOUT_MS);
     call_outputs_t o = call_outputs(&c);
     CHECK_EQ(o.tone[0], TONE_BUSY); CHECK_EQ(o.tone[1], TONE_DIAL);
-    CHECK_EQ(o.dtmf_line, 1); CHECK(!o.ring[1]);
+    CHECK(!o.ring[1]);
 }
 TEST(no_dial_timeout) {
     call_t c; call_init(&c); call_event(&c, 0, CALL_EV_OFF);
     ticks(&c, 29999); CHECK_EQ(call_outputs(&c).tone[0], TONE_DIAL);
     ticks(&c, 1);     CHECK_EQ(call_outputs(&c).tone[0], TONE_BUSY);
-    CHECK_EQ(call_outputs(&c).dtmf_line, -1);
 }
 TEST(ring_timeout) {
     call_t c; to_ringing(&c);
@@ -88,12 +85,12 @@ TEST(caller_abandons) {
     CHECK_EQ(call_line_state(&c, 0), LINE_IDLE);
     CHECK_EQ(call_line_state(&c, 1), LINE_IDLE);
 }
-TEST(first_offhook_owns_dtmf) {
+TEST(both_lines_dial_independently) { /* one MT8870 per line */
     call_t c; call_init(&c);
     call_event(&c, 1, CALL_EV_OFF); call_event(&c, 0, CALL_EV_OFF);
-    CHECK_EQ(call_outputs(&c).dtmf_line, 1);
-    call_event(&c, 1, CALL_EV_ON); /* owner hangs up: ownership moves to the other line */
-    CHECK_EQ(call_outputs(&c).dtmf_line, 0);
+    call_event(&c, 0, CALL_EV_DIGIT); call_event(&c, 1, CALL_EV_DIGIT);
+    CHECK_EQ(call_line_state(&c, 0), LINE_DIALING);
+    CHECK_EQ(call_line_state(&c, 1), LINE_DIALING);
 }
 TEST(blind_dial_digit_right_after_offhook) { /* Review Focus 2 */
     call_t c; call_init(&c);
@@ -106,7 +103,6 @@ TEST(digits_ignored_when_connected) { /* Review Focus 3 */
     ticks(&c, 5000);
     call_outputs_t o = call_outputs(&c);
     CHECK_EQ(call_line_state(&c, 0), LINE_CONNECTED); CHECK(o.link);
-    CHECK_EQ(o.dtmf_line, -1);
 }
 TEST(pulse_digit_in_call_is_ignored) { /* a 20-120 ms break during the call */
     call_t c; to_connected(&c);
@@ -135,7 +131,7 @@ int main(void) {
     RUN(each_digit_restarts_timer); RUN(answer_connects);
     RUN(hangup_in_call_gives_busy_to_other); RUN(called_offhook_gives_busy);
     RUN(no_dial_timeout); RUN(ring_timeout); RUN(caller_abandons);
-    RUN(first_offhook_owns_dtmf); RUN(blind_dial_digit_right_after_offhook);
+    RUN(both_lines_dial_independently); RUN(blind_dial_digit_right_after_offhook);
     RUN(digits_ignored_when_connected); RUN(pulse_digit_in_call_is_ignored); RUN(busy_then_hangup_is_idle);
     RUN(call_back_after_hangup);
     MINITEST_MAIN_END("test_call");

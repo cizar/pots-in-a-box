@@ -15,7 +15,7 @@ Telephone Service*) ya no existe: esta caja la simula entera.
 - Marcado por tonos (DTMF) y por pulsos. Cualquier número marcado hace sonar la otra línea.
 - Tonos de Argentina (ITU-T E.180) o de EE.UU., con una llave física.
 - Se alimenta con una fuente externa de 12 V: no hay 220 V dentro de la caja.
-- ATmega328P, MT8870 y ULN2003A. Todos los componentes son pasantes.
+- ATmega328P, un MT8870 por línea y ULN2003A. Todos los componentes son pasantes.
 
 ## Estado
 

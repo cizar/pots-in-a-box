@@ -14,8 +14,8 @@
 
 typedef struct {
     bool loop_closed[2];
-    bool dtmf_std;
-    uint8_t dtmf_code;   /* Q4..Q1 */
+    bool dtmf_std[2];    /* StD of each line's MT8870 (TOE tied to StD) */
+    uint8_t dtmf_code;   /* shared Q4..Q1 bus */
     country_t country;
 } pots_inputs_t;
 
@@ -24,7 +24,6 @@ typedef struct {
     bool ring_en[2];
     bool ring_drive;
     bool link;
-    uint8_t dtmf_sel;       /* held when no line is dialing */
     bool led_call;
 } pots_outputs_t;
 
@@ -33,8 +32,7 @@ typedef struct {
     call_t call;
     signals_t sig;
     bool ring_on_prev[2];
-    bool last_std;
-    uint8_t dtmf_sel;
+    bool last_std[2];
 } pots_t;
 
 void pots_init(pots_t *p);

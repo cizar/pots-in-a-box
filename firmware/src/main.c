@@ -29,7 +29,8 @@ int main(void) {
 
         in.loop_closed[0] = hal_loop_closed(0);
         in.loop_closed[1] = hal_loop_closed(1);
-        in.dtmf_std = hal_dtmf_std();
+        in.dtmf_std[0] = hal_dtmf_std(0);
+        in.dtmf_std[1] = hal_dtmf_std(1);
         in.dtmf_code = hal_dtmf_code();
         in.country = hal_country();
 
@@ -45,7 +46,6 @@ int main(void) {
         }
         hal_set_ring_drive(out.ring_drive);
         hal_set_link(out.link);
-        hal_set_dtmf_sel(out.dtmf_sel);
         hal_set_led_call(out.led_call);
     }
 }
