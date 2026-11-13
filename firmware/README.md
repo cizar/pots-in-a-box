@@ -8,7 +8,7 @@ ATmega328P con cristal de 16 MHz, en C99 con avr-gcc. Sin Arduino.
 make test     # pruebas de la lógica en la PC (cc)
 make          # build/pbx.hex
 make size     # uso de flash y RAM
-make fuses    # una sola vez por chip: cristal externo 16 MHz (lfuse FF, hfuse D9, efuse FF)
+make fuses    # una sola vez por chip: cristal 16 MHz full swing, BOD 4,3 V (lfuse F7, hfuse D9, efuse FC)
 make flash    # graba por ISP
 ```
 

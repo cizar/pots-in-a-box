@@ -3,7 +3,7 @@
 #   make test    pruebas de la lógica en la PC
 #   make         build/pbx.hex
 #   make size    tamaño del firmware
-#   make fuses   graba fusibles (cristal externo 16 MHz)
+#   make fuses   graba fusibles: cristal 16 MHz full swing, BOD 4,3 V
 #   make flash   graba el firmware por ISP
 
 MCU        = atmega328p
@@ -54,7 +54,7 @@ size: $(BUILD)/pbx.elf
 
 fuses:
 	avrdude -c $(PROGRAMMER) -P $(PORT) -p m328p \
-	  -U lfuse:w:0xFF:m -U hfuse:w:0xD9:m -U efuse:w:0xFF:m
+	  -U lfuse:w:0xF7:m -U hfuse:w:0xD9:m -U efuse:w:0xFC:m
 
 flash: $(BUILD)/pbx.hex
 	avrdude -c $(PROGRAMMER) -P $(PORT) -p m328p -U flash:w:$<:i
