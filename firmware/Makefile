@@ -12,6 +12,9 @@ MCU        = atmega328p
 F_CPU      = 16000000UL
 PROGRAMMER ?= usbasp
 PORT       ?= usb
+# Arduino Uno over USB:  make flash PROGRAMMER=arduino PORT=/dev/cu.usbmodemXXXX
+BAUD       ?= $(if $(filter arduino,$(PROGRAMMER)),115200,)
+AVRDUDE_BAUD = $(if $(BAUD),-b $(BAUD),)
 
 BUILD   = build
 SRC     = src
@@ -55,11 +58,14 @@ size: $(BUILD)/pots.elf
 	avr-size --format=avr --mcu=$(MCU) $< 2>/dev/null || avr-size $<
 
 fuses:
+ifeq ($(PROGRAMMER),arduino)
+	$(error Do not write fuses on an Arduino Uno: hfuse 0xD9 disables its bootloader. Its factory fuses are fine for the bench)
+endif
 	avrdude -c $(PROGRAMMER) -P $(PORT) -p m328p \
 	  -U lfuse:w:0xF7:m -U hfuse:w:0xD9:m -U efuse:w:0xFC:m
 
 flash: $(BUILD)/pots.hex
-	avrdude -c $(PROGRAMMER) -P $(PORT) -p m328p -U flash:w:$<:i
+	avrdude -c $(PROGRAMMER) -P $(PORT) $(AVRDUDE_BAUD) -p m328p -U flash:w:$<:i
 
 clean:
 	rm -rf $(BUILD)

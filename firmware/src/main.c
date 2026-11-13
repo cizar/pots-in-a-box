@@ -6,24 +6,34 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "hal.h"
+#include "log.h"
 #include "pots.h"
+#include "txq.h"
 
 int main(void) {
     pots_t pots;
     pots_inputs_t in;
     pots_outputs_t out;
     uint16_t last_f1[2] = { 0, 0 }, last_f2[2] = { 0, 0 };
+    static txq_t txq;
+    char line[LOG_LINE_MAX];
 
     /* The watchdog stays enabled after a watchdog reset: turn it off first. */
     MCUSR = 0;
     wdt_disable();
 
     pots_init(&pots);
+    txq_init(&txq);
     hal_init();
     wdt_enable(WDTO_250MS);
 
     for (;;) {
-        if (!hal_tick_pending()) continue;
+        if (!hal_tick_pending()) {
+            /* Idle: drain the debug log one byte at a time. */
+            uint8_t b;
+            if (hal_uart_ready() && txq_pop(&txq, &b)) hal_uart_put(b);
+            continue;
+        }
         hal_tick_clear();
         wdt_reset();
 
@@ -35,6 +45,10 @@ int main(void) {
         in.country = hal_country();
 
         pots_step(&pots, &in, &out);
+        for (uint8_t i = 0; i < out.n_events; i++) {
+            uint8_t n = log_format(&out.events[i], line, sizeof line);
+            txq_push(&txq, (const uint8_t *)line, n);
+        }
 
         for (uint8_t l = 0; l < 2; l++) {
             if (out.f1[l] != last_f1[l] || out.f2[l] != last_f2[l]) {

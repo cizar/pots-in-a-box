@@ -27,14 +27,37 @@ componentes son pasantes.
 Los esquemáticos se generan con `docs/schematics/make_schematics.py` (Schemdraw). Para
 regenerarlos: `pip install schemdraw matplotlib` y después `python3 docs/schematics/make_schematics.py`.
 
+### 1.0 Armado rápido con módulos (recomendado para la prueba)
+
+Para la prueba conviene reemplazar las partes delicadas de armar en protoboard por módulos
+comprados armados. En la versión final todo va soldado en la placa, pero el circuito y el
+firmware son los mismos.
+
+| Módulo | Reemplaza a | Cómo se conecta |
+|---|---|---|
+| **Arduino Uno** | ATmega328P, cristal, capacitores, 7805 | Mismo firmware. Pines: tabla de `firmware/README.md` (A0–A5, D2–D10, D12). Se alimenta con los 12 V por su jack; su pin 5V alimenta el módulo MT8870. Masa común con todo. |
+| **Elevador 1200 W** (entrada 10–60 V, salida 12–83 V, capacitores de salida de 100 V) | Elevador de §1.1 | Entrada a los 12 V. Ajustar la salida **sin carga**, con el téster, a 24 / 36 / 48 V. Preset **CC** al mínimo. **Nunca más de 60 V** (TVS de 68 V y capacitores de 63 V). |
+| **Módulo MT8870** (trae el chip, el cristal y la red de entrada) | MT8870 de L2 | Solo en **L2**, que es la que marca en la prueba. `IN` al nodo de audio protegido de L2; `StQ` a **D7**; `Q1`–`Q4` a **A2–A5**; `VCC` a 5 V. Su `TOE` está fijo en alto: **no se pueden poner dos en el mismo bus**. Para L1 no hace falta (el Modem 1200 atiende, no marca). |
+| **3 relés HK19F-DC12V-SHG** (DPDT, bobina 12 V) + **ULN2003A** | — (son los de §1.3 y §1.4) | Ring L1 desde **D8**, ring L2 desde **D9**, unión desde **D10**, a través del ULN2003A. Patas en grilla de 2,54 mm: entran en el protoboard. |
+| **Fuente de pared 12 V 2 A** | — | Ficha 5,5 × 2,1 mm. Una más chica puede caer al arrancar el elevador y sus capacitores. |
+
+- **Alternativa a los HK19F:** módulos de relé SRD de 12 V con jumper en H. Son de un polo:
+  hacen falta **dos por línea** para la ring (los dos IN al mismo pin) y uno para la unión.
+  Verificar que no se activen mientras el Uno se reinicia; si se activan, 10 kΩ de IN a GND.
+- **Llave AR/US:** entre **D12** y GND, **con 1 kΩ en serie**. Abierta = AR.
+- **Monitor serie:** con el Uno conectado por USB, `screen /dev/cu.usbmodemXXXX 38400` muestra
+  cada descuelgue, dígito y cambio de estado. Ver `firmware/README.md`.
+- **El Uno no tiene protecciones propias:** entre las líneas y sus pines tienen que estar
+  siempre el PC817 y la protección de 1 kΩ + diodos del audio (§1.4).
+
 ### 1.1 Alimentación
 
 ```
- 12 V (fuente de pared) ──┬──► 7805 ──► +5 V (ATmega, MT8870, lógica)
+ 12 V (fuente de pared) ──┬──► 7805 ──► +5 V (ATmega, MT8870, lógica)   [con Arduino Uno: su regulador]
                           ├──► COM del ULN2003A y bobinas de los relés
                           └──► elevador ajustable ──► V_LINE (24 / 36 / 48 V)
                                                       │
-                                                      ├─ 100 kΩ 1/2 W a GND (descarga)
+                                                      ├─ 4,7 kΩ 1 W a GND (descarga)
                                                       └─ 100 µF 63 V
 ```
 
@@ -177,7 +200,7 @@ Los componentes "por línea" se multiplican por 2. Los "compartidos" van una sol
 | 3 | resistencia de 10 kΩ | compartido (pull-down de PD4 y de las gates de los N) |
 | 1 | resistencia de 470 Ω 5 W | compartido (R_BRIDGE) |
 | 1 | relé chico con bobina de 12 V | compartido (unión L1–L2) |
-| 1 | resistencia de 100 kΩ 1/2 W + capacitor de 100 µF 63 V | compartido (riel V_LINE) |
+| 1 | resistencia de 4,7 kΩ 1 W (descarga) + capacitor de 100 µF 63 V | compartido (riel V_LINE; el capacitor no hace falta con el elevador de 1200 W, que trae los suyos) |
 | 1 | LED + resistencia de 470 Ω | compartido (LED_CALL en PD3) |
 | 1 | transformador 600:600 (opcional) | solo si falla la validación 4 |
 
@@ -210,8 +233,9 @@ Hay que cambiar estos componentes:
   - los capacitores de acople de 250 V.
 - **Nunca se toca nada con la ring activa,** es decir, mientras se escucha el clic del relé
   de ring o mientras el módem llamador recibe tono de llamada. ±48 V en cuadrada no mata, pero duele.
-- **Los capacitores quedan cargados.** El de 100 µF del riel se descarga solo por la
-  resistencia de 100 kΩ en unos 30 s. Los de 2,2 µF de acople hay que descargarlos con una
+- **Los capacitores quedan cargados.** Los del riel (los 3 × 470 µF del elevador de 1200 W,
+  unos 1,6 J a 48 V) se descargan solos por la resistencia de 4,7 kΩ en unos 30 s. Esperar
+  ese tiempo, y medir con el téster, antes de tocar. Los de 2,2 µF de acople hay que descargarlos con una
   resistencia de 1 kΩ antes de tocarlos.
 - **Siempre con la fuente de pared de 12 V.** Nada se conecta a 220 V.
 - **Primero sin módems:** medir con el téster que `V_LINE` y la corriente de corto sean las
@@ -223,16 +247,20 @@ Hay que cambiar estos componentes:
 ## 3. Procedimiento
 
 Antes de empezar:
-- Grabar el firmware con `make -C firmware fuses flash`.
-- Llave AR/US en **AR** (PD0 abierto).
+- Grabar el firmware: con un ATmega solo, `make -C firmware fuses flash`; con el Arduino Uno,
+  `make -C firmware flash PROGRAMMER=arduino PORT=/dev/cu.usbmodemXXXX` (sin `fuses`).
+- Llave AR/US en **AR** (abierta).
+- Abrir el monitor serie a 38400 (`screen /dev/cu.usbmodemXXXX 38400`): cada evento aparece
+  ahí y sirve para registrar los resultados.
 - Configurar el Modem 1200 desde la terminal de la C64.
 
 ### Validación 1: descolgado
 
 1. Con `V_LINE = 24 V`, conectar el Modem 1200 a L1.
 2. Desde la terminal, enviar `ATH1` (descolgar) y después `ATH0` (colgar). Repetir 10 veces.
-3. Medir con el osciloscopio en PC0, o escuchar en la línea: con `ATH1` aparece el tono de
-   invitación de 425 Hz, y con `ATH0` desaparece.
+3. En el monitor serie aparecen `L1 off-hook` con `ATH1` y `L1 on-hook` con `ATH0`. También
+   se puede escuchar la línea (con `ATH1` aparece el tono de invitación de 425 Hz) o medir
+   PC0 (A0 en el Uno) con el osciloscopio.
 4. Repetir con 36 V y con 48 V.
 
 **Criterio de éxito:** 10 de 10 descuelgues y 10 de 10 cuelgues detectados para cada

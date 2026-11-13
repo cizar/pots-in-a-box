@@ -22,6 +22,10 @@ void hal_set_link(bool on);
 void hal_set_led_call(bool on);
 void hal_set_tones(uint8_t line, uint16_t f1_hz, uint16_t f2_hz);
 
+/* Debug UART on PD1 (TX), 38400 8N1. */
+bool hal_uart_ready(void);
+void hal_uart_put(uint8_t b);
+
 bool hal_tick_pending(void);
 void hal_tick_clear(void);
 

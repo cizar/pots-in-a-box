@@ -224,6 +224,16 @@ misma interfaz.
 - Separación física de la zona de alta tensión (elevadores, ring y lado de línea) respecto
   de la lógica.
 - Conector ISP de 6 pines para programar el ATmega.
+- **El MCU es intercambiable con un Arduino Uno** (decisión del usuario): el mismo firmware y
+  el mismo mapa de pines sirven para el ATmega328P soldado en la placa y para un Uno en la
+  prueba de banco. Regla: ningún pin puede chocar con el Uno (PD0/PD1 van a su chip USB,
+  PB5 a su LED). Por eso la llave AR/US va en PB4 con 1 kΩ en serie. El mapa vive en
+  `firmware/README.md`.
+- Propuesta para la placa: un conector serie de 6 pines estilo FTDI (GND, VCC, RX, TX, DTR
+  con 100 nF a RESET) y el bootloader Optiboot en el ATmega. Así la placa se graba igual que
+  el Uno (`make flash PROGRAMMER=arduino`) con un adaptador USB-serie, y el mismo conector
+  muestra el log de depuración. Sirve también para actualizar el firmware de unidades
+  vendidas.
 - Hay que pensar en la producción en pequeña serie: componentes que se consigan y armado
   posible a mano.
 

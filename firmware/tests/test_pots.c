@@ -92,7 +92,57 @@ TEST(ring_drive_toggles_while_ringing) {
     CHECK(out.ring_drive != first);
 }
 
+static int count(uint8_t type, uint8_t line) {
+    int n = 0;
+    for (uint8_t i = 0; i < out.n_events; i++)
+        if (out.events[i].type == type && out.events[i].line == line) n++;
+    return n;
+}
+/* Steps until an event of `type` on `line` shows up; returns its value or -1. */
+static int wait_event(uint8_t type, uint8_t line, long max_ms) {
+    for (long i = 0; i < max_ms; i++) {
+        pots_step(&p, &in, &out);
+        for (uint8_t k = 0; k < out.n_events; k++)
+            if (out.events[k].type == type && out.events[k].line == line)
+                return out.events[k].value;
+    }
+    return -1;
+}
+
+TEST(event_country_at_start) {
+    reset(); step(1);
+    CHECK_EQ(count(POTS_EV_COUNTRY, 0), 1);
+    CHECK_EQ(out.events[0].value, COUNTRY_AR);
+    step(1); CHECK_EQ(count(POTS_EV_COUNTRY, 0), 0);
+    in.country = COUNTRY_US; step(1);
+    CHECK_EQ(count(POTS_EV_COUNTRY, 0), 1);
+}
+TEST(event_hook_and_state) {
+    reset(); step(1);
+    in.loop_closed[1] = true;
+    CHECK_EQ(wait_event(POTS_EV_HOOK_OFF, 1, 100), 0);
+    CHECK_EQ(count(POTS_EV_STATE, 1), 1);
+    CHECK_EQ(out.events[out.n_events - 1].value, LINE_DIALTONE);
+}
+TEST(event_dtmf_digit) {
+    reset(); in.loop_closed[0] = true; step(60);
+    in.dtmf_code = 10; in.dtmf_std[0] = true; /* code 10 = digit 0 */
+    CHECK_EQ(wait_event(POTS_EV_DTMF_DIGIT, 0, 5), 0);
+}
+TEST(event_dtmf_collision) {
+    reset(); in.loop_closed[0] = true; in.loop_closed[1] = true; step(60);
+    in.dtmf_code = 5; in.dtmf_std[0] = true; in.dtmf_std[1] = true;
+    CHECK(wait_event(POTS_EV_DTMF_COLLISION, 0, 5) >= 0);
+}
+TEST(event_pulse_digit) {
+    reset(); in.loop_closed[0] = true; step(60);
+    for (int i = 0; i < 4; i++) { in.loop_closed[0] = false; step(60); in.loop_closed[0] = true; step(40); }
+    CHECK_EQ(wait_event(POTS_EV_PULSE_DIGIT, 0, 300), 4);
+}
+
 int main(void) {
+    RUN(event_country_at_start); RUN(event_hook_and_state); RUN(event_dtmf_digit);
+    RUN(event_dtmf_collision); RUN(event_pulse_digit);
     RUN(offhook_gives_dialtone_on_its_pwm); RUN(dtmf_digit_rings_other_line);
     RUN(dtmf_held_std_counts_once); RUN(dtmf_abcd_is_ignored);
     RUN(dtmf_on_onhook_line_is_ignored); RUN(ring_does_not_fake_answer);

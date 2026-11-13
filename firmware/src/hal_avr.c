@@ -26,16 +26,27 @@ ISR(TIMER0_OVF_vect) {
 ISR(TIMER1_COMPA_vect) { tick_flag = true; }
 
 void hal_init(void) {
-    /* Outputs: PB0 RING_EN_L1, PB1 RING_EN_L2, PB2 LINK_EN. */
+    /* Outputs: PB0 RING_EN_L1, PB1 RING_EN_L2, PB2 LINK_EN.
+     * Input: PB4 COUNTRY_SW (pull-up; the switch goes to GND through 1 kOhm so
+     * ISP still works, PB4 being MISO). PB3/PB5 untouched (ISP). */
     DDRB |= _BV(PB0) | _BV(PB1) | _BV(PB2);
-    PORTB &= ~(_BV(PB0) | _BV(PB1) | _BV(PB2));
+    DDRB &= ~_BV(PB4);
+    PORTB = (PORTB & ~(_BV(PB0) | _BV(PB1) | _BV(PB2))) | _BV(PB4);
 
     /* Outputs: PD3 LED_CALL, PD4 RING_DRIVE, PD5/PD6 tones.
-     * Inputs: PD0 COUNTRY_SW (pull-up), PD2 DTMF_STD_L1, PD7 DTMF_STD_L2.
-     * PD1 reserved for UART TX. */
+     * Inputs: PD2 DTMF_STD_L1, PD7 DTMF_STD_L2.
+     * PD0/PD1: UART (RX unused for now, TX = debug log). On an Arduino Uno
+     * these are wired to the USB-serial chip. */
     DDRD |= _BV(PD3) | _BV(PD4) | _BV(PD5) | _BV(PD6);
-    DDRD &= ~(_BV(PD0) | _BV(PD2) | _BV(PD7));
-    PORTD = (PORTD & ~(_BV(PD3) | _BV(PD4) | _BV(PD2) | _BV(PD7))) | _BV(PD0);
+    DDRD &= ~(_BV(PD2) | _BV(PD7));
+    PORTD &= ~(_BV(PD3) | _BV(PD4) | _BV(PD2) | _BV(PD7));
+
+    /* UART0: 38400 8N1, TX only. UBRR = 16 MHz / 16 / 38400 - 1 = 25 (0.2 % error). */
+    UBRR0H = 0;
+    UBRR0L = (uint8_t)(F_CPU / 16 / 38400 - 1);
+    UCSR0A = 0;
+    UCSR0B = _BV(TXEN0);
+    UCSR0C = _BV(UCSZ01) | _BV(UCSZ00);
 
     /* Inputs: PC0/PC1 OFFHOOK (pull-up), PC2-PC5 MT8870 Q1-Q4. */
     DDRC &= ~0x3F;
@@ -59,7 +70,10 @@ void hal_init(void) {
 bool hal_loop_closed(uint8_t line) { return !(PINC & _BV(line ? PC1 : PC0)); }
 bool hal_dtmf_std(uint8_t line) { return (PIND & _BV(line ? PD7 : PD2)) != 0; }
 uint8_t hal_dtmf_code(void) { return (uint8_t)((PINC >> PC2) & 0x0F); }
-country_t hal_country(void) { return (PIND & _BV(PD0)) ? COUNTRY_AR : COUNTRY_US; }
+country_t hal_country(void) { return (PINB & _BV(PB4)) ? COUNTRY_AR : COUNTRY_US; }
+
+bool hal_uart_ready(void) { return (UCSR0A & _BV(UDRE0)) != 0; }
+void hal_uart_put(uint8_t b) { UDR0 = b; }
 
 static void pin(volatile uint8_t *port, uint8_t bit, bool on) {
     if (on) *port |= _BV(bit);
