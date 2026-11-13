@@ -61,6 +61,21 @@ TEST(open_200ms_during_call_does_nothing) { /* Review Focus 4 */
     feed(&h, false, 200, false); feed(&h, true, 1000, false);
     CHECK_EQ(nev, 0); CHECK(hook_is_off(&h));
 }
+TEST(open_121ms_is_not_a_pulse) { /* borde superior de pulso */
+    hook_t h; offhook(&h);
+    feed(&h, false, 121, false); feed(&h, true, 1000, false);
+    CHECK_EQ(nev, 0); CHECK(hook_is_off(&h));
+}
+TEST(open_120ms_is_a_pulse) {
+    hook_t h; offhook(&h);
+    feed(&h, false, 120, false); feed(&h, true, 300, false);
+    CHECK_EQ(nev, 1); CHECK_EQ(ev[0].type, HOOK_EV_DIGIT); CHECK_EQ(ev[0].digit, 1);
+}
+TEST(open_499ms_is_not_hangup) { /* borde inferior de colgado */
+    hook_t h; offhook(&h);
+    feed(&h, false, 499, false); feed(&h, true, 1000, false);
+    CHECK_EQ(nev, 0); CHECK(hook_is_off(&h));
+}
 TEST(open_15ms_not_counted) {
     hook_t h; offhook(&h);
     feed(&h, false, 15, false); feed(&h, true, 300, false);
@@ -86,7 +101,8 @@ TEST(masked_while_offhook_keeps_state) {
 int main(void) {
     RUN(offhook_after_50ms); RUN(short_glitch_is_not_offhook); RUN(pulse_digit_3);
     RUN(ten_pulses_is_zero); RUN(two_digits); RUN(hangup_after_500ms_open);
-    RUN(open_200ms_during_call_does_nothing); RUN(open_15ms_not_counted);
+    RUN(open_200ms_during_call_does_nothing); RUN(open_121ms_is_not_a_pulse); RUN(open_120ms_is_a_pulse);
+    RUN(open_499ms_is_not_hangup); RUN(open_15ms_not_counted);
     RUN(masked_ring_then_answer); RUN(mask_tail_covers_cap_recharge); RUN(masked_while_offhook_keeps_state);
     MINITEST_MAIN_END("test_hook");
 }

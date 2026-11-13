@@ -106,6 +106,12 @@ TEST(digits_ignored_when_connected) { /* Review Focus 3 */
     CHECK_EQ(call_line_state(&c, 0), LINE_CONNECTED); CHECK(o.link);
     CHECK_EQ(o.dtmf_line, -1);
 }
+TEST(pulse_digit_in_call_is_ignored) { /* corte de 20-120 ms durante la llamada */
+    call_t c; to_connected(&c);
+    call_event(&c, 1, CALL_EV_DIGIT);
+    ticks(&c, DIGIT_TIMEOUT_MS * 2);
+    CHECK_EQ(call_line_state(&c, 1), LINE_CONNECTED); CHECK(call_outputs(&c).link);
+}
 TEST(busy_then_hangup_is_idle) {
     call_t c; call_init(&c); call_event(&c, 0, CALL_EV_OFF);
     ticks(&c, NO_DIAL_TIMEOUT_MS);
@@ -128,7 +134,7 @@ int main(void) {
     RUN(hangup_in_call_gives_busy_to_other); RUN(called_offhook_gives_busy);
     RUN(no_dial_timeout); RUN(ring_timeout); RUN(caller_abandons);
     RUN(first_offhook_owns_dtmf); RUN(blind_dial_digit_right_after_offhook);
-    RUN(digits_ignored_when_connected); RUN(busy_then_hangup_is_idle);
+    RUN(digits_ignored_when_connected); RUN(pulse_digit_in_call_is_ignored); RUN(busy_then_hangup_is_idle);
     RUN(call_back_after_hangup);
     MINITEST_MAIN_END("test_call");
 }
