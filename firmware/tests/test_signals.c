@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Cesar Kastli */
 #include <string.h>
 #include "minitest.h"
 #include "../src/signals.h"

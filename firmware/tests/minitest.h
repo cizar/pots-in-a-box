@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Cesar Kastli */
 /* minitest.h — minimal test framework for running on the host. */
 #ifndef MINITEST_H
 #define MINITEST_H

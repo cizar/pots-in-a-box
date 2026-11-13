@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Cesar Kastli */
 /* dds.h — direct digital synthesis of 1 or 2 sines for 8-bit PWM. */
 #ifndef DDS_H
 #define DDS_H

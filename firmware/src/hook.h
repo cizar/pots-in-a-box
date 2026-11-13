@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Cesar Kastli */
 /* hook.h — off-hook/on-hook detection and pulse-dial decoding.
  * Fed with one loop sample per ms. */
 #ifndef HOOK_H

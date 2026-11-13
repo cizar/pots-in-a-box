@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Cesar Kastli */
 #include "hook.h"
 
 void hook_init(hook_t *h) {

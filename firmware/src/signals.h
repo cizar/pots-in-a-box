@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Cesar Kastli */
 /* signals.h — turns the logical call outputs into frequencies and ring
  * with the country's cadence. 1 ms tick. */
 #ifndef SIGNALS_H

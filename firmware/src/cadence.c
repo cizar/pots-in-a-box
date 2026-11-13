@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Cesar Kastli */
 #include "cadence.h"
 
 void cadence_start(cadence_t *c, uint16_t on_ms, uint16_t off_ms) {

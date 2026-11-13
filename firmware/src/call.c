@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Cesar Kastli */
 #include "call.h"
 
 #define OTHER(l) ((uint8_t)(1u - (l)))

@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Cesar Kastli */
 #include "dtmf.h"
 
 int8_t dtmf_code_to_digit(uint8_t q) {

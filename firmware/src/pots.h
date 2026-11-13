@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Cesar Kastli */
 /* pots.h — one 1 ms tick of the exchange: hardware inputs ->
  * detection -> logic -> outputs. Pure: main.c wires it to the HAL. */
 #ifndef POTS_H

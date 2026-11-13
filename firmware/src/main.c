@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Cesar Kastli */
 /* main.c — wires pots_step (pure logic, tested on the host) to the HAL.
  * 1 ms tick. The watchdog resets the chip if the loop hangs. */
 #include <avr/wdt.h>

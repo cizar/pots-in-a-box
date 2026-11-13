@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Cesar Kastli
 # Firmware for POTS in a box, a 2-line analog telephone exchange (ATmega328P @ 16 MHz)
 #
 #   make test    run the logic tests on the host

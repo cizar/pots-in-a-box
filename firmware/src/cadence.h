@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Cesar Kastli */
 /* cadence.h — on/off cadence driven by a 1 ms tick. */
 #ifndef CADENCE_H
 #define CADENCE_H

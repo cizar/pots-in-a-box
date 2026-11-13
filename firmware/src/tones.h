@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Cesar Kastli */
 /* tones.h — per-country tone and ring table (ITU-T E.180). */
 #ifndef TONES_H
 #define TONES_H

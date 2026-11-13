@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Cesar Kastli */
 /* hal.h — ATmega328P hardware access. Used by main.c only.
  * Pin map: see firmware/README.md. */
 #ifndef HAL_H

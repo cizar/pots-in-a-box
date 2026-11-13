@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Cesar Kastli */
 /* dtmf.h — maps the MT8870 4-bit code to a digit. */
 #ifndef DTMF_H
 #define DTMF_H

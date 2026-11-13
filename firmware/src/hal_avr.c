@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Cesar Kastli */
 /* hal_avr.c — ATmega328P @ 16 MHz.
  *
  * Timer0: 8-bit fast PWM, no prescaler (62500 Hz) on OC0A (PD6, L1) and

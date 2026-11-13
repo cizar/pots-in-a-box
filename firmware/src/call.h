@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Cesar Kastli */
 /* call.h — 2-line call state machine (spec §7.8). 1 ms tick. */
 #ifndef CALL_H
 #define CALL_H
