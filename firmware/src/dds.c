@@ -28,13 +28,17 @@ static const uint8_t SINE_TABLE[256] PROGMEM = {
      79,  82,  85,  88,  90,  93,  97, 100, 103, 106, 109, 112, 115, 118, 121, 124
 };
 
-static uint16_t increment(uint16_t f_hz) {
+uint16_t dds_increment(uint16_t f_hz) {
     return (uint16_t)(((uint32_t)f_hz * 65536u + DDS_SAMPLE_RATE_HZ / 2) / DDS_SAMPLE_RATE_HZ);
 }
 
+void dds_set_increments(dds_t *d, uint16_t inc1, uint16_t inc2) {
+    d->inc1 = inc1;
+    d->inc2 = inc2;
+}
+
 void dds_set(dds_t *d, uint16_t f1_hz, uint16_t f2_hz) {
-    d->inc1 = increment(f1_hz);
-    d->inc2 = increment(f2_hz);
+    dds_set_increments(d, dds_increment(f1_hz), dds_increment(f2_hz));
 }
 
 uint8_t dds_next(dds_t *d) {

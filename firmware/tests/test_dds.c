@@ -51,7 +51,14 @@ TEST(same_freq_keeps_phase) {
     CHECK_EQ(d.phase1, ph);
 }
 
+TEST(increment_is_rounded) { /* revisión final #6: se calcula fuera de cli */
+    CHECK_EQ(dds_increment(425), 891);
+    CHECK_EQ(dds_increment(0), 0);
+    dds_t d = {0}; dds_set_increments(&d, 891, 0); CHECK_EQ(d.inc1, 891);
+}
+
 int main(void) {
+    RUN(increment_is_rounded);
     RUN(single_425_crossings); RUN(dual_350_440_has_both_and_not_400);
     RUN(silence_is_midscale); RUN(single_tone_full_scale); RUN(same_freq_keeps_phase);
     MINITEST_MAIN_END("test_dds");

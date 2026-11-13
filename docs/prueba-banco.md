@@ -44,20 +44,26 @@ MOSFET externo de 100 V) se diseña después, con la `V_LINEA` que salga de acá
 
 ```
  V_LINEA ── PTC 100 mA ──┬── colector  Q1 MJE340 (300 V, con disipador chico)
-                         │   base Q1 ── 10 kΩ ── V_LINEA
+                         │   base Q1 ── 10 kΩ 1/2 W ── V_LINEA
                          │              └─ colector Q2 BC546
                          │   emisor Q1 ── R_SENSE 27 Ω ──┬── base Q2
                          │                               │   emisor Q2 ─┐
-                         │                               └──────────────┴──► nodo A
- nodo A ── LED del PC817 (ánodo) ── cátodo ──► NC del relé de ring ──► TIP (RJ11)
-           1N4148 en antiparalelo con el LED (protege contra inversión y ring)
- RING (RJ11) ──► NC del relé de ring ──► GND
+                         │                               └──────────────┴──► nodo TIP_FEED
+ nodo TIP_FEED ──► NC del relé de ring ──► TIP (RJ11)
+ RING (RJ11) ──► NC del relé de ring ──► nodo RING_RET
+ nodo RING_RET ── LED del PC817 (ánodo) ── cátodo ──► GND
+                  1N4148 en antiparalelo con el LED (protege contra inversión)
  TVS bidireccional P6KE68CA entre TIP y RING, del lado del RJ11
 ```
 
 - **Limitador de corriente:** Q1 conduce hasta que la caída en R_SENSE llega a unos 0,65 V.
   Con 27 Ω la corriente queda en unos **24 mA**. Para 30 mA usar 22 Ω; para 20 mA, 33 Ω.
 - Con la línea en corto, Q1 disipa `V_LINEA × I`, unos 1,2 W a 48 V: **necesita disipador**.
+  La resistencia de base disipa unos 0,22 W: tiene que ser de **1/2 W**.
+- **El PC817 va en el retorno (RING → GND), no en la alimentación.** Así por el LED pasa
+  solamente la corriente que atraviesa el módem. La corriente que recarga el capacitor de
+  acople (§1.4) no pasa por el LED, y no aparecen descuelgues falsos al terminar cada ráfaga
+  de ring ni pulsos acortados al marcar por pulsos.
 - **PC817:** el transistor va con el colector a **PC0** (pull-up interno del ATmega) y el
   emisor a GND. Lazo cerrado = PC0 en bajo, que es lo que espera el firmware.
 
@@ -68,80 +74,126 @@ línea con polaridad alternada, así que a la línea llega una onda cuadrada de 
 48 V rms a 48 V.
 
 ```
- V_LINEA ──┬───────────────┬──
-           P1 IRF9540      P2 IRF9540
-           │               │
- salida A ─┤               ├─ salida B ── 470 Ω 5 W ── NO del relé (lado TIP)
-           N1 IRF540       N2 IRF540                  salida A ── NO del relé (lado RING)
-           │               │
- GND ──────┴───────────────┴──
- RING_DRIVE (PD4) ──► excita P1/N2;  inversor (BC547 o 74HC04) ──► excita P2/N1
- Gates de los P: desplazador de nivel con BC547 + 10 kΩ / 4,7 kΩ a V_LINEA
-                 (Vgs del IRF9540 limitado a menos de 20 V con un zener de 12 V)
- Gates de los N: 100 Ω desde la lógica (o desde el colector de un BC547 a 12 V)
+ V_LINEA ── R_BRIDGE 470 Ω 5 W ──┬──────────────┬──      (limita corto y conducción cruzada)
+                                 P1 IRF9540     P2 IRF9540
+                                 │              │
+                       salida A ─┤              ├─ salida B ──► NO del relé (lado TIP)
+                                 N1 IRF540      N2 IRF540     salida A ──► NO del relé (lado RING)
+                                 │              │
+ GND ────────────────────────────┴──────────────┴──
+ RING_DRIVE (PD4) ── 10 kΩ a GND (fija el nivel en reset y durante ISP)
+   PD4 ──► excita P1 y N2;  inversor BC547 (12 V) ──► excita P2 y N1
+ Gates de los P (una red por cada P):
+   desplazador con BC546 (65 V) o MPSA42: colector ── 22 kΩ ── V_LINEA,
+   zener de 12 V entre gate y fuente (Vgs < 20 V)
+ Gates de los N: 10 kΩ entre gate y fuente (pull-down)
+ Todas las gates: 220 Ω en serie con un 1N4148 en paralelo, cátodo hacia el driver
+   (carga lenta y descarga rápida: el MOSFET apaga antes de que prenda el otro)
 ```
 
 - **Relé de ring:** DPDT con bobina de 12 V (por ejemplo, de la serie HK19F). Lo maneja una
   entrada del ULN2003A desde **PB0** (L1) o **PB1** (L2). El pin COM del ULN2003A va a 12 V
   y ya trae los diodos de protección.
   - En reposo (NC), la línea queda en la alimentación de §1.2.
-  - Activado (NO), la línea queda en el puente H, a través de la resistencia de 470 Ω.
-- La resistencia de 470 Ω limita la corriente de ring a unos 100 mA en cortocircuito.
-- **Tiempo muerto:** el firmware cambia la fase cada 20 ms (AR) o 25 ms (US). Para evitar que
-  conduzcan a la vez el P y el N de la misma rama, poner una red RC en las gates (10 kΩ +
-  10 nF) y verificar con el osciloscopio que no haya conducción cruzada.
-- Si a 48 V el Modem 1200 no detecta la ring, el plan B es un **segundo elevador solo para la
-  ring** de unos 70–90 V, con el mismo puente H y MOSFETs de 100 V o más.
+  - Activado (NO), la línea queda en el puente H.
+- **R_BRIDGE está entre `V_LINEA` y el lado alto del puente.** Así limita la corriente tanto
+  si la línea está en corto como si P y N de la misma rama conducen a la vez (unos 100 mA
+  como máximo a 48 V). Por eso no puede ir solo en la salida.
+- **Verificar con el osciloscopio**, sin línea conectada: medir la tensión sobre R_BRIDGE en
+  cada cambio de fase. Si aparecen picos de conducción cruzada de más de unos microsegundos,
+  aumentar la resistencia de 220 Ω de las gates.
+- Si a 48 V el Modem 1200 no detecta la ring, ver el plan B en §1.6.
 
 ### 1.4 Audio, tonos y DTMF (acople por capacitor)
 
 ```
- TIP (después del relé) ── 1 µF 250 V film ──┬── nodo de audio de la línea
-                                              │
- PD6 (L1) o PD5 (L2) ── 1 kΩ ─┬─ 1 kΩ ─┬─ trimmer 47 kΩ ─┘   (inyección de tono)
-                            47 nF     47 nF
-                              GND      GND                 (filtro RC de 2 polos, ~3 kHz)
+ nodo TIP_FEED (lado NC del relé: nunca ve la ring)
+   └── 1 µF 250 V film ── nodo de audio de la línea (lado línea)
+                              │
+                              ├── relé de unión L1–L2 (ULN2003A desde PB2) ── nodo de audio de la otra línea
+                              │
+                              └── 1 kΩ ──┬── 1N4148 a +5 V (cátodo a +5 V)
+                                         ├── 1N4148 a GND (ánodo a GND)
+                                         └── nodo de audio protegido (lado lógica, 0–5 V)
 
- nodo de audio L1 ─┐
-                   ├── DTMF_SEL (PD7) elige ── 100 nF ── 100 kΩ ── IN- del MT8870
- nodo de audio L2 ─┘   (relé chico o CD4066)          (circuito de entrada de una
-                                                       sola terminal de la hoja de datos)
- Unión de audio L1–L2: relé (vía ULN2003A desde PB2) entre los dos nodos de audio
+ PD6 (L1) o PD5 (L2) ── 1 kΩ ─┬─ 1 kΩ ─┬─ 4,7 kΩ fijo ── trimmer 47 kΩ ──► nodo protegido
+                            47 nF     47 nF
+                              GND      GND            (filtro RC de 2 polos, ~3 kHz)
+
+ nodo protegido L1 ─┐
+                    ├── DTMF_SEL: relé chico de 12 V (ULN2003A desde PD7) ── 100 nF ── 100 kΩ ── IN- del MT8870
+ nodo protegido L2 ─┘                               (circuito de entrada de una sola terminal de la hoja de datos)
 ```
 
+- **El capacitor de acople va del lado NC del relé de ring.** Así nunca le llega la ring y
+  mantiene su carga.
+- **Del lado de la lógica, todo queda protegido por la resistencia de 1 kΩ y los dos diodos
+  a +5 V y GND.** Así los escalones de continua de cada descuelgue, cuelgue y pulso (unos
+  ±40 V) no llegan al MT8870 ni a los pines del ATmega.
+- **El DTMF_SEL es un relé, no un CD4066,** y la resistencia fija de 4,7 kΩ en serie con el
+  trimmer protege a PD5 y PD6 aunque el trimmer se ponga en cero.
+- La unión L1–L2 va del lado línea, antes de la protección, para que el audio de los módems
+  pase sin atenuación.
 - El nivel del tono se ajusta con el trimmer. Hay que empezar alto, en unos 47 kΩ, y bajarlo
   hasta que el módem detecte el tono de invitación, para no saturar la línea.
 - **MT8870:** usar el circuito de entrada de una sola terminal y el cristal de 3,579545 MHz
   de la hoja de datos. Las salidas Q1–Q4 van a PC2–PC5 y StD a PD2.
 - Para la alternativa con **transformador 600:600**: reemplazar el capacitor de 1 µF por el
   bobinado de línea del transformador, en serie con un capacitor de 1 µF 250 V para que no
-  pase la continua. El otro bobinado va al nodo de audio.
+  pase la continua. El otro bobinado va al nodo de audio. La protección de 1 kΩ y los
+  diodos se mantiene.
 
-### 1.5 Lista de materiales (por línea, salvo indicación)
+### 1.5 Lista de materiales
 
-| Cant. | Componente | Nota |
+Los componentes "por línea" se multiplican por 2. Los "compartidos" van una sola vez.
+
+| Cant. | Componente | Uso |
 |---|---|---|
 | 1 | Módulo elevador ajustable de 12 V a ≥ 50 V | compartido; solo para la prueba |
 | 1 | 7805 + capacitores de 100 nF y 10 µF | compartido |
 | 1 | ATmega328P DIP-28 + cristal de 16 MHz + 2 × 22 pF | compartido |
-| 1 | MT8870 DIP-18 + cristal de 3,579545 MHz | compartido |
-| 1 | ULN2003A DIP-16 | compartido |
-| 1 | MJE340 + disipador chico | |
-| 1 | BC546 | |
-| 1 | resistencia de 27 Ω (y 22 Ω y 33 Ω para probar) | |
-| 1 | resistencia de 10 kΩ | |
-| 1 | PTC de 100 mA y 60 V o más | |
-| 1 | TVS P6KE68CA | |
-| 1 | PC817 + 1N4148 | |
-| 1 | relé DPDT con bobina de 12 V | |
-| 1 | capacitor de film de 1 µF 250 V | |
-| 1 | trimmer de 47 kΩ + 2 × 1 kΩ + 2 × 47 nF | filtro de tono |
-| 1 | RJ11 hembra pasante | |
-| 2 | IRF540 + 2 × IRF9540 + 3 × BC547 + zener de 12 V | compartido (puente H) |
-| 1 | resistencia de 470 Ω 5 W | compartido |
-| 1 | relé chico de 12 V para la unión L1–L2 | compartido |
-| 1 | resistencia de 100 kΩ 1/2 W + capacitor de 100 µF 63 V | compartido |
+| 1 | MT8870 DIP-18 + cristal de 3,579545 MHz + componentes de entrada de la hoja de datos | compartido |
+| 1 | ULN2003A DIP-16 | compartido (ring L1, ring L2, unión, DTMF_SEL) |
+| 1 | MJE340 + disipador chico | por línea |
+| 1 | BC546 | por línea (limitador) |
+| 1 | resistencia de 27 Ω (y 22 Ω y 33 Ω para probar) | por línea |
+| 1 | resistencia de 10 kΩ 1/2 W | por línea |
+| 1 | PTC de 100 mA y 60 V o más | por línea |
+| 1 | TVS P6KE68CA | por línea |
+| 1 | PC817 + 1N4148 | por línea |
+| 1 | relé DPDT con bobina de 12 V | por línea (ring) |
+| 1 | capacitor de film de 1 µF 250 V | por línea |
+| 1 | resistencia de 1 kΩ + 2 × 1N4148 | por línea (protección del audio) |
+| 1 | trimmer de 47 kΩ + 4,7 kΩ + 2 × 1 kΩ + 2 × 47 nF | por línea (filtro y nivel de tono) |
+| 1 | RJ11 hembra pasante | por línea |
+| 2 | IRF540 | compartido (puente H) |
+| 2 | IRF9540 | compartido (puente H) |
+| 2 | BC546 o MPSA42 + 2 × 22 kΩ + 2 × zener de 12 V | compartido (gates de los P) |
+| 1 | BC547 + 10 kΩ + 1 kΩ | compartido (inversor de fase) |
+| 4 | resistencia de 220 Ω + 1N4148 | compartido (una por gate) |
+| 3 | resistencia de 10 kΩ | compartido (pull-down de PD4 y de las gates de los N) |
+| 1 | resistencia de 470 Ω 5 W | compartido (R_BRIDGE) |
+| 2 | relé chico con bobina de 12 V | compartido (unión L1–L2 y DTMF_SEL) |
+| 1 | resistencia de 100 kΩ 1/2 W + capacitor de 100 µF 63 V | compartido (riel V_LINEA) |
+| 1 | LED + resistencia de 470 Ω | compartido (LED_CALL en PD3) |
 | 1 | transformador 600:600 (opcional) | solo si falla la validación 4 |
+
+### 1.6 Plan B: riel de ring aparte de 70–90 V
+
+Usarlo solo si la validación 2 falla a 48 V. **Supera la tensión de seguridad extra-baja**
+(unos 60 V de continua), así que todo lo de §2 se aplica con más cuidado todavía.
+
+Hay que cambiar estos componentes:
+
+| Componente | Prueba a 48 V | Plan B a 90 V |
+|---|---|---|
+| Elevador | compartido con V_LINEA | segundo elevador solo para la ring, de 70–90 V |
+| MOSFETs del puente | IRF540 / IRF9540 (100 V) | IRF640 / IRF9640 (200 V) |
+| Desplazadores de gate | BC546 / MPSA42, 22 kΩ | MPSA42 (300 V), 47 kΩ 1 W |
+| R_BRIDGE | 470 Ω 5 W | 1 kΩ 10 W (unos 8 W en corto a 90 V) |
+| TVS de línea | P6KE68CA | P6KE120CA (la de 68 V conduciría con la ring y se quemaría) |
+| Capacitor de acople | 250 V | 250 V (alcanza) |
+| Capacitor del riel | 63 V | 160 V o más |
 
 ---
 
@@ -149,7 +201,7 @@ línea con polaridad alternada, así que a la línea llega una onda cuadrada de 
 
 - **Nodos con tensión peligrosa:**
   - el riel `V_LINEA`;
-  - las salidas del puente H y la resistencia de 470 Ω;
+  - las salidas del puente H y R_BRIDGE;
   - los contactos NO de los relés de ring;
   - los RJ11;
   - los capacitores de acople de 250 V.
@@ -191,7 +243,8 @@ Antes de empezar:
 4. Medir la tensión de ring en el RJ11 de L1 con el téster en alterna (V rms) mientras suena.
 
 **Criterio de éxito:** el Modem 1200 atiende (va a línea y emite el tono de respuesta) en
-5 de 5 llamadas. Registrar los V rms de ring medidos. Si no atiende, pasar al plan B de §1.3.
+5 de 5 llamadas. Registrar los V rms de ring medidos. Si no atiende, pasar al plan B de §1.6.
+5. Repetir una vez marcando por pulsos desde la PC (`ATDP1`) para verificar el marcado por pulsos.
 
 ### Validación 3: ring trip
 
@@ -203,6 +256,9 @@ Antes de empezar:
   después de atender);
 - se enciende el LED de llamada activa (PD3);
 - se cierra el relé de unión.
+
+Además, en el osciloscopio, PC0 de L1 no tiene que bajar durante los 200 ms siguientes a
+cada ráfaga cuando el módem todavía no atendió (si baja, hay un descuelgue falso).
 
 ### Validación 4: negociación a 1200 bps
 

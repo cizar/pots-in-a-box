@@ -152,8 +152,12 @@ misma interfaz.
   **45–60 V rms** sobre 1–2 REN. A confirmar en la prueba.
 - Corriente limitada por diseño (seguridad).
 - **Detección de atención durante la ring (ring trip):** el ATmega tiene que darse cuenta de
-  que la línea llamada descolgó mientras suena, para cortar la ring de inmediato. Es un punto
+  que la línea llamada descolgó mientras suena, para cortar la ring. Es un punto
   delicado del diseño discreto. Hay que validarlo en la prueba.
+  En el diseño discreto actual, mientras el relé de ring está activo el detector no ve el
+  lazo, así que la atención se detecta **al terminar la ráfaga** (hasta 1 s en AR y 2 s en
+  US), más unos 200 ms de asentamiento. Es aceptable para módems. Un detector de ring trip
+  dedicado queda como mejora si la prueba muestra problemas.
 
 ### 7.6 Marcado
 

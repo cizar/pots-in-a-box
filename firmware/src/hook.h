@@ -11,7 +11,7 @@
 #define PULSE_MIN_MS   20  /* apertura que cuenta como pulso: 20..120 ms     */
 #define PULSE_MAX_MS   120
 #define INTERDIGIT_MS  200 /* lazo cerrado tras >=1 pulso -> DIGIT           */
-#define MASK_TAIL_MS   50  /* se sigue ignorando tras la máscara (relé)      */
+#define MASK_TAIL_MS   150 /* se ignora tras la máscara: relé + recarga del acople */
 
 typedef enum { HOOK_EV_NONE = 0, HOOK_EV_OFF, HOOK_EV_ON, HOOK_EV_DIGIT } hook_ev_type_t;
 

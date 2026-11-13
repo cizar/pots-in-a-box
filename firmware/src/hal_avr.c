@@ -1,8 +1,9 @@
 /* hal_avr.c — ATmega328P @ 16 MHz.
  *
  * Timer0: PWM rápido 8 bits sin prescaler (62500 Hz) en OC0A (PD6, L1) y
- *         OC0B (PD5, L2). La ISR de desborde actualiza la muestra cada 2
- *         desbordes (DDS_SAMPLE_RATE_HZ = 31250).
+ *         OC0B (PD5, L2). La ISR de desborde alterna canales: L1 en los
+ *         desbordes impares y L2 en los pares, así cada canal se actualiza a
+ *         DDS_SAMPLE_RATE_HZ = 31250 y ninguna ISR calcula dos muestras.
  * Timer1: CTC a 1 kHz para el tick lógico.
  */
 #include <avr/interrupt.h>
@@ -16,10 +17,8 @@ static volatile bool tick_flag;
 ISR(TIMER0_OVF_vect) {
     static uint8_t odd;
     odd ^= 1;
-    if (odd) {
-        OCR0A = dds_next(&dds[0]);
-        OCR0B = dds_next(&dds[1]);
-    }
+    if (odd) OCR0A = dds_next(&dds[0]);
+    else OCR0B = dds_next(&dds[1]);
 }
 
 ISR(TIMER1_COMPA_vect) { tick_flag = true; }
@@ -71,9 +70,11 @@ void hal_set_dtmf_sel(uint8_t line) { pin(&PORTD, PD7, line != 0); }
 void hal_set_led_call(bool on) { pin(&PORTD, PD3, on); }
 
 void hal_set_tones(uint8_t line, uint16_t f1_hz, uint16_t f2_hz) {
+    /* Las divisiones van fuera de la sección crítica. */
+    uint16_t inc1 = dds_increment(f1_hz), inc2 = dds_increment(f2_hz);
     uint8_t sreg = SREG;
     cli();
-    dds_set(&dds[line & 1], f1_hz, f2_hz);
+    dds_set_increments(&dds[line & 1], inc1, inc2);
     SREG = sreg;
 }
 

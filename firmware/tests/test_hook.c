@@ -70,9 +70,12 @@ TEST(masked_ring_then_answer) { /* Review Focus 1 */
     hook_t h; reset(&h);
     for (int i = 0; i < 50; i++) feed(&h, (i & 1) != 0, 20, true);
     CHECK_EQ(nev, 0); CHECK(!hook_is_off(&h));
-    feed(&h, true, 99, false); CHECK_EQ(nev, 0);
+    feed(&h, true, MASK_TAIL_MS + HOOK_OFF_MS - 1, false); CHECK_EQ(nev, 0);
     feed(&h, true, 1, false);
     CHECK_EQ(nev, 1); CHECK_EQ(ev[0].type, HOOK_EV_OFF);
+}
+TEST(mask_tail_covers_cap_recharge) { /* revisión final #1 */
+    CHECK(MASK_TAIL_MS >= 150);
 }
 TEST(masked_while_offhook_keeps_state) {
     hook_t h; offhook(&h);
@@ -84,6 +87,6 @@ int main(void) {
     RUN(offhook_after_50ms); RUN(short_glitch_is_not_offhook); RUN(pulse_digit_3);
     RUN(ten_pulses_is_zero); RUN(two_digits); RUN(hangup_after_500ms_open);
     RUN(open_200ms_during_call_does_nothing); RUN(open_15ms_not_counted);
-    RUN(masked_ring_then_answer); RUN(masked_while_offhook_keeps_state);
+    RUN(masked_ring_then_answer); RUN(mask_tail_covers_cap_recharge); RUN(masked_while_offhook_keeps_state);
     MINITEST_MAIN_END("test_hook");
 }
