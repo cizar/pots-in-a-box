@@ -2,7 +2,7 @@
 #include "minitest.h"
 #include "../src/dds.h"
 
-/* Potencia en f de n muestras de dds_next (centradas en 0). */
+/* Power at f over n samples of dds_next (centred on 0). */
 static double goertzel(dds_t *d, double f, int n) {
     double w = 2.0 * M_PI * f / DDS_SAMPLE_RATE_HZ, k = 2.0 * cos(w);
     double s1 = 0, s2 = 0;
@@ -16,7 +16,7 @@ static double goertzel(dds_t *d, double f, int n) {
 TEST(single_425_crossings) {
     dds_t d = {0}; dds_set(&d, 425, 0);
     int up = 0; uint8_t prev = dds_next(&d);
-    for (int i = 1; i < (int)DDS_SAMPLE_RATE_HZ; i++) { /* 1 segundo */
+    for (int i = 1; i < (int)DDS_SAMPLE_RATE_HZ; i++) { /* 1 second */
         uint8_t s = dds_next(&d);
         if (prev < 128 && s >= 128) up++;
         prev = s;
@@ -51,7 +51,7 @@ TEST(same_freq_keeps_phase) {
     CHECK_EQ(d.phase1, ph);
 }
 
-TEST(increment_is_rounded) { /* revisión final #6: se calcula fuera de cli */
+TEST(increment_is_rounded) { /* final review #6: computed outside cli */
     CHECK_EQ(dds_increment(425), 891);
     CHECK_EQ(dds_increment(0), 0);
     dds_t d = {0}; dds_set_increments(&d, 891, 0); CHECK_EQ(d.inc1, 891);

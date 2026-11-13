@@ -582,12 +582,12 @@ Grabar los fusibles y el firmware con `make fuses flash`. Con un parlante o un o
 
 **Interfaces:**
 - Consumes: el mapa de pines (Global Constraints) y el firmware de la Task 7.
-- Produces: el procedimiento y la tabla de resultados que el **segundo plan** (KiCad) usa para fijar `V_LINEA`, la tensión de ring y la opción de acople.
+- Produces: el procedimiento y la tabla de resultados que el **segundo plan** (KiCad) usa para fijar `V_LINE`, la tensión de ring y la opción de acople.
 
 **Contenido obligatorio del documento** (spec §7.3–7.5 y §8):
 
 1. **Circuito de prueba propuesto**, con esquema en texto y valores de partida. Todos los componentes tienen que ser pasantes y fáciles de conseguir en Argentina, y deben figurar en una lista de materiales:
-   - un elevador de 12 V a `V_LINEA` ajustable entre 24 y 48 V;
+   - un elevador de 12 V a `V_LINE` ajustable entre 24 y 48 V;
    - un limitador de corriente de lazo de 20–30 mA;
    - un optoacoplador de descolgado hacia PC0;
    - un generador de ring (elevador más puente H manejado por `RING_DRIVE`), con corriente limitada;
@@ -595,11 +595,11 @@ Grabar los fusibles y el firmware con `make fuses flash`. Con un parlante o un o
    - el acople por capacitor de film de 250 V hacia el filtro RC de PD6 y hacia el MT8870.
 2. **Advertencias de seguridad:** qué nodos llevan alta tensión, que hay que descargar los capacitores, y que no se toca nada con la ring activa.
 3. **Procedimiento** de las 4 validaciones del spec §8, cada una con criterio de éxito medible:
-   1. Descolgado: el firmware ve `OFF` en 10 de 10 descuelgues con el Modem 1200 (`ATH1`) y `ON` con `ATH0`, para cada `V_LINEA` probado (24, 36 y 48 V).
+   1. Descolgado: el firmware ve `OFF` en 10 de 10 descuelgues con el Modem 1200 (`ATH1`) y `ON` con `ATH0`, para cada `V_LINE` probado (24, 36 y 48 V).
    2. Ring: con `ATS0=1`, el módem atiende en 5 de 5 llamadas. Se registra la tensión de ring medida en V rms.
    3. Ring trip: después de atender, la ring se corta antes de que termine la ráfaga siguiente y el LED LÍNEA se enciende.
    4. Negociación: con dos líneas improvisadas (Modem 1200 contra el módem de la PC), hay `CONNECT 1200` en 5 de 5 intentos, y se pasan 10 minutos de texto sin errores visibles. Si falla, se repite con un transformador 600:600 y se registra el resultado.
-4. **Tabla de resultados** para completar: fecha, `V_LINEA`, corriente de lazo, V rms de ring, resultados de cada validación, opción de acople elegida y observaciones.
+4. **Tabla de resultados** para completar: fecha, `V_LINE`, corriente de lazo, V rms de ring, resultados de cada validación, opción de acople elegida y observaciones.
 
 - [ ] **Step 1: Escribir `docs/prueba-banco.md` con los 4 contenidos de arriba**
 

@@ -1,4 +1,4 @@
-/* minitest.h — framework mínimo de pruebas para correr en la PC. */
+/* minitest.h — minimal test framework for running on the host. */
 #ifndef MINITEST_H
 #define MINITEST_H
 
@@ -13,7 +13,7 @@ static int mt_current_failed = 0;
 #define CHECK(cond)                                                        \
     do {                                                                   \
         if (!(cond)) {                                                     \
-            printf("  FALLA %s:%d: %s\n", __FILE__, __LINE__, #cond);      \
+            printf("  FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);      \
             mt_current_failed = 1;                                         \
         }                                                                  \
     } while (0)
@@ -22,7 +22,7 @@ static int mt_current_failed = 0;
     do {                                                                   \
         long mt_a = (long)(a), mt_b = (long)(b);                           \
         if (mt_a != mt_b) {                                                \
-            printf("  FALLA %s:%d: %s == %s (%ld != %ld)\n", __FILE__,     \
+            printf("  FAIL %s:%d: %s == %s (%ld != %ld)\n", __FILE__,     \
                    __LINE__, #a, #b, mt_a, mt_b);                          \
             mt_current_failed = 1;                                         \
         }                                                                  \
@@ -35,7 +35,7 @@ static int mt_current_failed = 0;
         mt_tests++;                                                        \
         if (mt_current_failed) {                                           \
             mt_failures++;                                                 \
-            printf("FALLA: %s\n", #name);                                  \
+            printf("FAIL: %s\n", #name);                                  \
         }                                                                  \
     } while (0)
 

@@ -6,6 +6,6 @@ int8_t dtmf_code_to_digit(uint8_t q) {
     case 10: return 0;
     case 11: return DTMF_STAR;
     case 12: return DTMF_HASH;
-    default: return -1; /* 0 = D, 13-15 = A-C, >15 inválido */
+    default: return -1; /* 0 = D, 13-15 = A-C, >15 invalid */
     }
 }

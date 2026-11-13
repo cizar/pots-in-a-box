@@ -1,4 +1,4 @@
-/* dtmf.h — traduce el código de 4 bits del MT8870 a un dígito. */
+/* dtmf.h — maps the MT8870 4-bit code to a digit. */
 #ifndef DTMF_H
 #define DTMF_H
 
@@ -7,8 +7,8 @@
 #define DTMF_STAR 10
 #define DTMF_HASH 11
 
-/* q: bits Q4..Q1 del MT8870. Devuelve 0-9, DTMF_STAR, DTMF_HASH,
- * o -1 para A/B/C/D o un código inválido. */
+/* q: MT8870 bits Q4..Q1. Returns 0-9, DTMF_STAR, DTMF_HASH,
+ * or -1 for A/B/C/D or an invalid code. */
 int8_t dtmf_code_to_digit(uint8_t q);
 
 #endif

@@ -98,7 +98,7 @@ desplazamiento, `CS` por ranura, backplane con edge connector 2×13 y placas de 
 
 ```
  12 V ─► [protección / regulador 5 V] ─► lógica
-      └► [elevador 12 V → V_LINEA (24–48 V)] ─► alimentación de línea ×2
+      └► [elevador 12 V → V_LINE (24–48 V)] ─► alimentación de línea ×2
       └► [generador de ring compartido] ─► relé ring L1 / relé ring L2
 
  RJ11 L1 ─┬─ limitador de corriente ─ opto descolgado ─► ATmega
@@ -122,7 +122,7 @@ Cada instancia expone hacia el resto de la placa:
 | `OFFHOOK` | sale | lógica: la línea está descolgada (y los pulsos de marcado) |
 | `RING_EN` | entra | activa el relé de ring de esa línea (vía ULN2003A) |
 | `AUDIO` | bidireccional | nodo de audio después del acople |
-| `V_LINEA`, `RING_A/B`, `GND`, `+5V` | alimentación | |
+| `V_LINE`, `RING_A/B`, `GND`, `+5V` | alimentación | |
 
 Contenido: RJ11, limitador de corriente de lazo, optoacoplador de descolgado, relé de ring,
 acople de audio, protección (por ejemplo TVS o varistor y fusible PTC en la línea).
@@ -138,7 +138,7 @@ misma interfaz.
 
 ### 7.4 Acople de audio
 
-- Por defecto: **2 capacitores de film de 250 V** por línea (tienen que aguantar V_LINEA más
+- Por defecto: **2 capacitores de film de 250 V** por línea (tienen que aguantar V_LINE más
   la ring).
 - Alternativa en el mismo PCB: **huella de transformador 600:600** con puentes. Se arma una
   u otra opción. Hay que reservar unos 25×25 mm por línea y respetar la separación del caso
@@ -233,13 +233,13 @@ firmware/              código del ATmega328P
 Prueba en protoboard de **una línea** más el generador de ring, contra el módem más
 exigente (probablemente el de la C64). Tiene que validar:
 
-1. El descolgado se detecta de forma confiable con el V_LINEA elegido.
+1. El descolgado se detecta de forma confiable con el V_LINE elegido.
 2. El módem en auto-atención detecta la ring generada.
 3. El ring trip funciona.
 4. Con las dos líneas improvisadas y el acople por capacitor, dos módems negocian sin
    problemas de ruido o zumbido. Si falla, se prueba con transformador.
 
-Lo que salga de la prueba ajusta V_LINEA, la tensión de ring y la opción de acople.
+Lo que salga de la prueba ajusta V_LINE, la tensión de ring y la opción de acople.
 
 ## 9. Decisiones que quedan para el constructor
 

@@ -8,7 +8,7 @@ perforada y responde cuatro preguntas:
 3. ¿El ring trip funciona?
 4. ¿Dos módems negocian a 1200 bps a través del acople por capacitor?
 
-Los resultados fijan `V_LINEA`, la tensión de ring y la opción de acople del plan de KiCad.
+Los resultados fijan `V_LINE`, la tensión de ring y la opción de acople del plan de KiCad.
 
 Para que suene L1 alguien tiene que llamar desde L2, así que en la práctica se arman **las
 dos líneas**:
@@ -29,7 +29,7 @@ componentes son pasantes.
 ```
  12 V (fuente de pared) ──┬──► 7805 ──► +5 V (ATmega, MT8870, lógica)
                           ├──► COM del ULN2003A y bobinas de los relés
-                          └──► elevador ajustable ──► V_LINEA (24 / 36 / 48 V)
+                          └──► elevador ajustable ──► V_LINE (24 / 36 / 48 V)
                                                       │
                                                       ├─ 100 kΩ 1/2 W a GND (descarga)
                                                       └─ 100 µF 63 V
@@ -38,13 +38,13 @@ componentes son pasantes.
 Para la prueba conviene un **módulo elevador ajustable** comprado armado, cuya salida llegue a
 50 V. Hay que verificar en la publicación la tensión máxima de salida, porque muchos módulos
 baratos no pasan de 35 V. El elevador propio de la placa final (por ejemplo, un MC34063 con un
-MOSFET externo de 100 V) se diseña después, con la `V_LINEA` que salga de acá.
+MOSFET externo de 100 V) se diseña después, con la `V_LINE` que salga de acá.
 
 ### 1.2 Alimentación de una línea (por cada línea)
 
 ```
- V_LINEA ── PTC 100 mA ──┬── colector  Q1 MJE340 (300 V, con disipador chico)
-                         │   base Q1 ── 10 kΩ 1/2 W ── V_LINEA
+ V_LINE ── PTC 100 mA ──┬── colector  Q1 MJE340 (300 V, con disipador chico)
+                         │   base Q1 ── 10 kΩ 1/2 W ── V_LINE
                          │              └─ colector Q2 BC546
                          │   emisor Q1 ── R_SENSE 27 Ω ──┬── base Q2
                          │                               │   emisor Q2 ─┐
@@ -58,7 +58,7 @@ MOSFET externo de 100 V) se diseña después, con la `V_LINEA` que salga de acá
 
 - **Limitador de corriente:** Q1 conduce hasta que la caída en R_SENSE llega a unos 0,65 V.
   Con 27 Ω la corriente queda en unos **24 mA**. Para 30 mA usar 22 Ω; para 20 mA, 33 Ω.
-- Con la línea en corto, Q1 disipa `V_LINEA × I`, unos 1,2 W a 48 V: **necesita disipador**.
+- Con la línea en corto, Q1 disipa `V_LINE × I`, unos 1,2 W a 48 V: **necesita disipador**.
   La resistencia de base disipa unos 0,22 W: tiene que ser de **1/2 W**.
 - **El PC817 va en el retorno (RING → GND), no en la alimentación.** Así por el LED pasa
   solamente la corriente que atraviesa el módem. La corriente que recarga el capacitor de
@@ -69,12 +69,12 @@ MOSFET externo de 100 V) se diseña después, con la `V_LINEA` que salga de acá
 
 ### 1.3 Ring
 
-En la prueba se usa **el mismo `V_LINEA` como riel de ring**. Un puente H lo aplica a la
-línea con polaridad alternada, así que a la línea llega una onda cuadrada de ±V_LINEA, unos
+En la prueba se usa **el mismo `V_LINE` como riel de ring**. Un puente H lo aplica a la
+línea con polaridad alternada, así que a la línea llega una onda cuadrada de ±V_LINE, unos
 48 V rms a 48 V.
 
 ```
- V_LINEA ── R_BRIDGE 470 Ω 5 W ──┬──────────────┬──      (limita corto y conducción cruzada)
+ V_LINE ── R_BRIDGE 470 Ω 5 W ──┬──────────────┬──      (limita corto y conducción cruzada)
                                  P1 IRF9540     P2 IRF9540
                                  │              │
                        salida A ─┤              ├─ salida B ──► NO del relé (lado TIP)
@@ -83,8 +83,10 @@ línea con polaridad alternada, así que a la línea llega una onda cuadrada de 
  GND ────────────────────────────┴──────────────┴──
  RING_DRIVE (PD4) ── 10 kΩ a GND (fija el nivel en reset y durante ISP)
    PD4 ──► excita P1 y N2;  inversor BC547 (12 V) ──► excita P2 y N1
+   (el desplazador de cada P invierte: transistor encendido = gate a menos de V_LINE = P
+    encendido. Así PD4 en alto enciende P1 y N2, y el inversor enciende P2 y N1)
  Gates de los P (una red por cada P):
-   desplazador con BC546 (65 V) o MPSA42: colector ── 22 kΩ ── V_LINEA,
+   desplazador con BC546 (65 V) o MPSA42: colector ── 22 kΩ ── V_LINE,
    zener de 12 V entre gate y fuente (Vgs < 20 V)
  Gates de los N: 10 kΩ entre gate y fuente (pull-down)
  Todas las gates: 220 Ω en serie con un 1N4148 en paralelo, cátodo hacia el driver
@@ -96,7 +98,7 @@ línea con polaridad alternada, así que a la línea llega una onda cuadrada de 
   y ya trae los diodos de protección.
   - En reposo (NC), la línea queda en la alimentación de §1.2.
   - Activado (NO), la línea queda en el puente H.
-- **R_BRIDGE está entre `V_LINEA` y el lado alto del puente.** Así limita la corriente tanto
+- **R_BRIDGE está entre `V_LINE` y el lado alto del puente.** Así limita la corriente tanto
   si la línea está en corto como si P y N de la misma rama conducen a la vez (unos 100 mA
   como máximo a 48 V). Por eso no puede ir solo en la salida.
 - **Verificar con el osciloscopio**, sin línea conectada: medir la tensión sobre R_BRIDGE en
@@ -108,7 +110,7 @@ línea con polaridad alternada, así que a la línea llega una onda cuadrada de 
 
 ```
  nodo TIP_FEED (lado NC del relé: nunca ve la ring)
-   └── 1 µF 250 V film ── nodo de audio de la línea (lado línea)
+   └── 2,2 µF 250 V film ── nodo de audio de la línea (lado línea)
                               │
                               ├── relé de unión L1–L2 (ULN2003A desde PB2) ── nodo de audio de la otra línea
                               │
@@ -138,7 +140,7 @@ línea con polaridad alternada, así que a la línea llega una onda cuadrada de 
   hasta que el módem detecte el tono de invitación, para no saturar la línea.
 - **MT8870:** usar el circuito de entrada de una sola terminal y el cristal de 3,579545 MHz
   de la hoja de datos. Las salidas Q1–Q4 van a PC2–PC5 y StD a PD2.
-- Para la alternativa con **transformador 600:600**: reemplazar el capacitor de 1 µF por el
+- Para la alternativa con **transformador 600:600**: reemplazar el capacitor de 2,2 µF por el
   bobinado de línea del transformador, en serie con un capacitor de 1 µF 250 V para que no
   pase la continua. El otro bobinado va al nodo de audio. La protección de 1 kΩ y los
   diodos se mantiene.
@@ -162,7 +164,7 @@ Los componentes "por línea" se multiplican por 2. Los "compartidos" van una sol
 | 1 | TVS P6KE68CA | por línea |
 | 1 | PC817 + 1N4148 | por línea |
 | 1 | relé DPDT con bobina de 12 V | por línea (ring) |
-| 1 | capacitor de film de 1 µF 250 V | por línea |
+| 1 | capacitor de film de 2,2 µF 250 V | por línea (con 1 µF se pierden 1–2 dB entre las dos líneas) |
 | 1 | resistencia de 1 kΩ + 2 × 1N4148 | por línea (protección del audio) |
 | 1 | trimmer de 47 kΩ + 4,7 kΩ + 2 × 1 kΩ + 2 × 47 nF | por línea (filtro y nivel de tono) |
 | 1 | RJ11 hembra pasante | por línea |
@@ -174,7 +176,7 @@ Los componentes "por línea" se multiplican por 2. Los "compartidos" van una sol
 | 3 | resistencia de 10 kΩ | compartido (pull-down de PD4 y de las gates de los N) |
 | 1 | resistencia de 470 Ω 5 W | compartido (R_BRIDGE) |
 | 2 | relé chico con bobina de 12 V | compartido (unión L1–L2 y DTMF_SEL) |
-| 1 | resistencia de 100 kΩ 1/2 W + capacitor de 100 µF 63 V | compartido (riel V_LINEA) |
+| 1 | resistencia de 100 kΩ 1/2 W + capacitor de 100 µF 63 V | compartido (riel V_LINE) |
 | 1 | LED + resistencia de 470 Ω | compartido (LED_CALL en PD3) |
 | 1 | transformador 600:600 (opcional) | solo si falla la validación 4 |
 
@@ -187,7 +189,7 @@ Hay que cambiar estos componentes:
 
 | Componente | Prueba a 48 V | Plan B a 90 V |
 |---|---|---|
-| Elevador | compartido con V_LINEA | segundo elevador solo para la ring, de 70–90 V |
+| Elevador | compartido con V_LINE | segundo elevador solo para la ring, de 70–90 V |
 | MOSFETs del puente | IRF540 / IRF9540 (100 V) | IRF640 / IRF9640 (200 V) |
 | Desplazadores de gate | BC546 / MPSA42, 22 kΩ | MPSA42 (300 V), 47 kΩ 1 W |
 | R_BRIDGE | 470 Ω 5 W | 1 kΩ 10 W (unos 8 W en corto a 90 V) |
@@ -200,18 +202,18 @@ Hay que cambiar estos componentes:
 ## 2. Seguridad
 
 - **Nodos con tensión peligrosa:**
-  - el riel `V_LINEA`;
+  - el riel `V_LINE`;
   - las salidas del puente H y R_BRIDGE;
   - los contactos NO de los relés de ring;
   - los RJ11;
   - los capacitores de acople de 250 V.
-- **Nunca se toca nada con la ring activa,** cuando el LED de la línea titila o el relé está
-  cerrado. ±48 V en cuadrada no mata, pero duele.
+- **Nunca se toca nada con la ring activa,** es decir, mientras se escucha el clic del relé
+  de ring o mientras el módem llamador recibe tono de llamada. ±48 V en cuadrada no mata, pero duele.
 - **Los capacitores quedan cargados.** El de 100 µF del riel se descarga solo por la
-  resistencia de 100 kΩ en unos 30 s. Los de 1 µF de acople hay que descargarlos con una
+  resistencia de 100 kΩ en unos 30 s. Los de 2,2 µF de acople hay que descargarlos con una
   resistencia de 1 kΩ antes de tocarlos.
 - **Siempre con la fuente de pared de 12 V.** Nada se conecta a 220 V.
-- **Primero sin módems:** medir con el téster que `V_LINEA` y la corriente de corto sean las
+- **Primero sin módems:** medir con el téster que `V_LINE` y la corriente de corto sean las
   esperadas. Recién después se conectan las computadoras.
 - **Disipador en el MJE340** antes de probar con la línea en corto.
 
@@ -226,14 +228,14 @@ Antes de empezar:
 
 ### Validación 1: descolgado
 
-1. Con `V_LINEA = 24 V`, conectar el Modem 1200 a L1.
+1. Con `V_LINE = 24 V`, conectar el Modem 1200 a L1.
 2. Desde la terminal, enviar `ATH1` (descolgar) y después `ATH0` (colgar). Repetir 10 veces.
 3. Medir con el osciloscopio en PC0, o escuchar en la línea: con `ATH1` aparece el tono de
    invitación de 425 Hz, y con `ATH0` desaparece.
 4. Repetir con 36 V y con 48 V.
 
 **Criterio de éxito:** 10 de 10 descuelgues y 10 de 10 cuelgues detectados para cada
-`V_LINEA`. Registrar además la corriente de lazo medida con el módem descolgado.
+`V_LINE`. Registrar además la corriente de lazo medida con el módem descolgado.
 
 ### Validación 2: ring
 
@@ -277,7 +279,7 @@ caracteres basura visibles. Si falla, se arma la alternativa con transformador 6
 
 Una fila por corrida. Se commitea completa en el repo.
 
-| Fecha | V_LINEA (V) | I lazo (mA) | Ring (V rms) | V1 descolgado (x/10) | V2 ring (x/5) | V3 ring trip (x/5) | V4 negociación (x/5) | Acople | Observaciones |
+| Fecha | V_LINE (V) | I lazo (mA) | Ring (V rms) | V1 descolgado (x/10) | V2 ring (x/5) | V3 ring trip (x/5) | V4 negociación (x/5) | Acople | Observaciones |
 |---|---|---|---|---|---|---|---|---|---|
 | | 24 | | | | | | | capacitor | |
 | | 36 | | | | | | | capacitor | |
@@ -286,8 +288,8 @@ Una fila por corrida. Se commitea completa en el repo.
 
 **Decisiones para el plan de KiCad**, a completar con la tabla de arriba:
 
-- `V_LINEA` elegido:
-- Riel de ring: compartido con `V_LINEA` o con elevador aparte, y de cuántos voltios:
+- `V_LINE` elegido:
+- Riel de ring: compartido con `V_LINE` o con elevador aparte, y de cuántos voltios:
 - Acople: capacitor o transformador:
 - R_SENSE (corriente de lazo):
 - Nivel del tono (valor del trimmer):

@@ -1,5 +1,5 @@
-/* pbx.h — un tick de 1 ms de la central: entradas del hardware ->
- * detección -> lógica -> salidas. Puro: main.c lo conecta al HAL. */
+/* pbx.h — one 1 ms tick of the exchange: hardware inputs ->
+ * detection -> logic -> outputs. Pure: main.c wires it to the HAL. */
 #ifndef PBX_H
 #define PBX_H
 
@@ -18,11 +18,11 @@ typedef struct {
 } pbx_inputs_t;
 
 typedef struct {
-    uint16_t f1[2], f2[2];  /* tono por línea; 0,0 = silencio */
+    uint16_t f1[2], f2[2];  /* tone per line; 0,0 = silence */
     bool ring_en[2];
     bool ring_drive;
     bool link;
-    uint8_t dtmf_sel;       /* se mantiene cuando nadie marca */
+    uint8_t dtmf_sel;       /* held when no line is dialing */
     bool led_call;
 } pbx_outputs_t;
 

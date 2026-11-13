@@ -1,10 +1,10 @@
-# Firmware de la PBX de 2 líneas (ATmega328P @ 16 MHz)
+# Firmware for the 2-line PBX (ATmega328P @ 16 MHz)
 #
-#   make test    pruebas de la lógica en la PC
+#   make test    run the logic tests on the host
 #   make         build/pbx.hex
-#   make size    tamaño del firmware
-#   make fuses   graba fusibles: cristal 16 MHz full swing, BOD 4,3 V
-#   make flash   graba el firmware por ISP
+#   make size    firmware size
+#   make fuses   write fuses: 16 MHz full-swing crystal, BOD 4.3 V
+#   make flash   flash the firmware over ISP
 
 MCU        = atmega328p
 F_CPU      = 16000000UL
@@ -15,7 +15,7 @@ BUILD   = build
 SRC     = src
 TESTS   = tests
 
-# Módulos puros: sin <avr/*>, se prueban en la PC
+# Pure modules: no <avr/*>, tested on the host
 PURE_SRCS = $(filter-out $(SRC)/main.c $(SRC)/hal_avr.c,$(wildcard $(SRC)/*.c))
 AVR_SRCS  = $(wildcard $(SRC)/*.c)
 

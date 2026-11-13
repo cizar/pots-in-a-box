@@ -1,4 +1,4 @@
-/* cadence.h — cadencia on/off con tick de 1 ms. */
+/* cadence.h — on/off cadence driven by a 1 ms tick. */
 #ifndef CADENCE_H
 #define CADENCE_H
 
@@ -10,8 +10,8 @@ typedef struct {
 } cadence_t;
 
 void cadence_start(cadence_t *c, uint16_t on_ms, uint16_t off_ms);
-/* Devuelve si el ms actual está en "on" y avanza.
- * off_ms == 0: siempre true. on_ms == 0: siempre false. */
+/* Returns whether the current ms is "on", then advances.
+ * off_ms == 0: always true. on_ms == 0: always false. */
 bool cadence_tick(cadence_t *c);
 
 #endif

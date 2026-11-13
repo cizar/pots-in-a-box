@@ -1,5 +1,5 @@
-/* hal.h — acceso al hardware del ATmega328P. Solo lo usa main.c.
- * Mapa de pines: ver firmware/README.md. */
+/* hal.h — ATmega328P hardware access. Used by main.c only.
+ * Pin map: see firmware/README.md. */
 #ifndef HAL_H
 #define HAL_H
 
@@ -9,7 +9,7 @@
 
 void hal_init(void);
 
-bool hal_loop_closed(uint8_t line);  /* OFFHOOK_L1/L2, activo en bajo */
+bool hal_loop_closed(uint8_t line);  /* OFFHOOK_L1/L2, active low */
 bool hal_dtmf_std(void);
 uint8_t hal_dtmf_code(void);         /* Q4..Q1 */
 country_t hal_country(void);

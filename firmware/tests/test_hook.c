@@ -1,8 +1,8 @@
 #include "minitest.h"
 #include "../src/hook.h"
 
-/* Llama a hook_sample `ms` veces; junta eventos y el ms (1-based, dentro
- * de esta llamada) en que ocurrió el último. */
+/* Calls hook_sample `ms` times; collects events and the ms (1-based,
+ * within this call) of the last one. */
 static hook_ev_t ev[32];
 static int nev;
 static int last_at;
@@ -19,7 +19,7 @@ static void pulses(hook_t *h, int n) {
     for (int i = 0; i < n; i++) { feed(h, false, 60, false); feed(h, true, 40, false); }
 }
 
-TEST(offhook_after_50ms) { /* también cubre arrancar con la línea ya descolgada */
+TEST(offhook_after_50ms) { /* also covers powering up with the line already off-hook */
     hook_t h; reset(&h);
     feed(&h, true, 49, false); CHECK_EQ(nev, 0); CHECK(!hook_is_off(&h));
     feed(&h, true, 1, false);
@@ -61,7 +61,7 @@ TEST(open_200ms_during_call_does_nothing) { /* Review Focus 4 */
     feed(&h, false, 200, false); feed(&h, true, 1000, false);
     CHECK_EQ(nev, 0); CHECK(hook_is_off(&h));
 }
-TEST(open_121ms_is_not_a_pulse) { /* borde superior de pulso */
+TEST(open_121ms_is_not_a_pulse) { /* upper pulse boundary */
     hook_t h; offhook(&h);
     feed(&h, false, 121, false); feed(&h, true, 1000, false);
     CHECK_EQ(nev, 0); CHECK(hook_is_off(&h));
@@ -71,7 +71,7 @@ TEST(open_120ms_is_a_pulse) {
     feed(&h, false, 120, false); feed(&h, true, 300, false);
     CHECK_EQ(nev, 1); CHECK_EQ(ev[0].type, HOOK_EV_DIGIT); CHECK_EQ(ev[0].digit, 1);
 }
-TEST(open_499ms_is_not_hangup) { /* borde inferior de colgado */
+TEST(open_499ms_is_not_hangup) { /* lower hang-up boundary */
     hook_t h; offhook(&h);
     feed(&h, false, 499, false); feed(&h, true, 1000, false);
     CHECK_EQ(nev, 0); CHECK(hook_is_off(&h));
@@ -89,7 +89,7 @@ TEST(masked_ring_then_answer) { /* Review Focus 1 */
     feed(&h, true, 1, false);
     CHECK_EQ(nev, 1); CHECK_EQ(ev[0].type, HOOK_EV_OFF);
 }
-TEST(mask_tail_covers_cap_recharge) { /* revisión final #1 */
+TEST(mask_tail_covers_cap_recharge) { /* final review #1 */
     CHECK(MASK_TAIL_MS >= 150);
 }
 TEST(masked_while_offhook_keeps_state) {

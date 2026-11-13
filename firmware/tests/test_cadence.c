@@ -5,7 +5,7 @@ TEST(on_off_boundaries) {
     cadence_t c; cadence_start(&c, 1000, 4000);
     for (int i = 1; i <= 1000; i++) CHECK(cadence_tick(&c));
     for (int i = 1; i <= 4000; i++) CHECK(!cadence_tick(&c));
-    CHECK(cadence_tick(&c)); /* llamada 5001: arranca otro período */
+    CHECK(cadence_tick(&c)); /* call 5001: next period starts */
 }
 TEST(continuous) {
     cadence_t c; cadence_start(&c, 1, 0);

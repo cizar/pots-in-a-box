@@ -3,7 +3,7 @@
 
 static void ticks(call_t *c, long ms) { for (long i = 0; i < ms; i++) call_tick(c); }
 
-/* L0 llama a L1, L1 está sonando. */
+/* L0 calls L1, L1 is ringing. */
 static void to_ringing(call_t *c) {
     call_init(c);
     call_event(c, 0, CALL_EV_OFF);
@@ -90,7 +90,7 @@ TEST(first_offhook_owns_dtmf) {
     call_t c; call_init(&c);
     call_event(&c, 1, CALL_EV_OFF); call_event(&c, 0, CALL_EV_OFF);
     CHECK_EQ(call_outputs(&c).dtmf_line, 1);
-    call_event(&c, 1, CALL_EV_ON); /* el dueño cuelga: pasa a la otra */
+    call_event(&c, 1, CALL_EV_ON); /* owner hangs up: ownership moves to the other line */
     CHECK_EQ(call_outputs(&c).dtmf_line, 0);
 }
 TEST(blind_dial_digit_right_after_offhook) { /* Review Focus 2 */
@@ -106,7 +106,7 @@ TEST(digits_ignored_when_connected) { /* Review Focus 3 */
     CHECK_EQ(call_line_state(&c, 0), LINE_CONNECTED); CHECK(o.link);
     CHECK_EQ(o.dtmf_line, -1);
 }
-TEST(pulse_digit_in_call_is_ignored) { /* corte de 20-120 ms durante la llamada */
+TEST(pulse_digit_in_call_is_ignored) { /* a 20-120 ms break during the call */
     call_t c; to_connected(&c);
     call_event(&c, 1, CALL_EV_DIGIT);
     ticks(&c, DIGIT_TIMEOUT_MS * 2);

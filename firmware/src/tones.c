@@ -1,23 +1,23 @@
 #include <stddef.h>
 #include "tones.h"
 
-/* Argentina: ITU-T E.180, anexo al Boletín de Explotación (estado al 2010-05-01). */
-/* EE.UU.: Precise Tone Plan. */
+/* Argentina: ITU-T E.180, Operational Bulletin annex (status as of 2010-05-01). */
+/* USA: Precise Tone Plan. */
 static const signal_spec_t TONES[2][3] = {
     [COUNTRY_AR] = {
-        { 425, 0, 1, 0 },       /* DIAL     continuo */
+        { 425, 0, 1, 0 },       /* DIAL     continuous */
         { 425, 0, 1000, 4000 }, /* RINGBACK */
         { 425, 0, 300, 200 },   /* BUSY     */
     },
     [COUNTRY_US] = {
-        { 350, 440, 1, 0 },       /* DIAL     continuo */
+        { 350, 440, 1, 0 },       /* DIAL     continuous */
         { 440, 480, 2000, 4000 }, /* RINGBACK */
         { 480, 620, 500, 500 },   /* BUSY     */
     },
 };
 
 static const signal_spec_t RING[2] = {
-    [COUNTRY_AR] = { 25, 0, 1000, 4000 }, /* 25 Hz sin verificar; cadencia = ringback E.180 */
+    [COUNTRY_AR] = { 25, 0, 1000, 4000 }, /* 25 Hz unverified; cadence = E.180 ringback */
     [COUNTRY_US] = { 20, 0, 2000, 4000 },
 };
 

@@ -25,9 +25,12 @@ El programador por defecto es `usbasp`. Se cambia con `make flash PROGRAMMER=avr
 | `src/cadence.c` | cadencias on/off |
 | `src/signals.c` | estado de llamada → frecuencias y ring con cadencia |
 | `src/dds.c` | síntesis de 1 o 2 senos para PWM |
-| `src/hal_avr.c`, `src/main.c` | hardware y bucle principal (solo AVR) |
+| `src/pbx.c` | un tick de 1 ms: entradas → detección → lógica → salidas (probado en la PC) |
+| `src/hal_avr.c`, `src/main.c` | hardware, watchdog y bucle principal (solo AVR) |
 
 Los módulos puros no incluyen `<avr/*>` y se prueban con `make test`.
+
+**Idioma:** el código (identificadores, comentarios, Makefile, mensajes de los tests y nombres de señales como `V_LINE`) va en inglés. La documentación va en español.
 
 ## Mapa de pines
 

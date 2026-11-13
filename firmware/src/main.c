@@ -1,5 +1,5 @@
-/* main.c — conecta pbx_step (lógica pura, probada en la PC) con el HAL.
- * Tick de 1 ms. El watchdog reinicia el chip si el bucle se cuelga. */
+/* main.c — wires pbx_step (pure logic, tested on the host) to the HAL.
+ * 1 ms tick. The watchdog resets the chip if the loop hangs. */
 #include <avr/wdt.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -12,7 +12,7 @@ int main(void) {
     pbx_outputs_t out;
     uint16_t last_f1[2] = { 0, 0 }, last_f2[2] = { 0, 0 };
 
-    /* Después de un reset por watchdog sigue activo: apagarlo primero. */
+    /* The watchdog stays enabled after a watchdog reset: turn it off first. */
     MCUSR = 0;
     wdt_disable();
 

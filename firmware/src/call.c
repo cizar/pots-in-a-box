@@ -4,7 +4,7 @@
 
 static bool is_dialing(line_state_t s) { return s == LINE_DIALTONE || s == LINE_DIALING; }
 
-/* Cambia el estado de una línea y mantiene quién es dueño del MT8870. */
+/* Changes a line's state and keeps track of which line owns the MT8870. */
 static void set_state(call_t *c, uint8_t l, line_state_t s) {
     bool was = is_dialing(c->state[l]);
     c->state[l] = s;
@@ -39,14 +39,14 @@ void call_event(call_t *c, uint8_t l, call_ev_t ev) {
         break;
 
     case CALL_EV_ON:
-        if (s == LINE_RINGING || s == LINE_IDLE) break; /* ya está colgada */
+        if (s == LINE_RINGING || s == LINE_IDLE) break; /* already on-hook */
         set_state(c, l, LINE_IDLE);
         if (s == LINE_CONNECTED) set_state(c, o, LINE_BUSY);
         else if (s == LINE_RINGBACK) set_state(c, o, LINE_IDLE);
         break;
 
     case CALL_EV_DIGIT:
-        if (is_dialing(s)) set_state(c, l, LINE_DIALING); /* reinicia el timer */
+        if (is_dialing(s)) set_state(c, l, LINE_DIALING); /* restarts the timer */
         break;
     }
 }
@@ -61,7 +61,7 @@ void call_tick(call_t *c) {
             break;
         case LINE_DIALING:
             if (c->timer[l] >= DIGIT_TIMEOUT_MS) {
-                /* Cualquier número llama a la otra línea. */
+                /* Any number rings the other line. */
                 if (c->state[o] != LINE_IDLE) {
                     set_state(c, l, LINE_BUSY);
                 } else {

@@ -1,5 +1,5 @@
-/* signals.h — de la salida lógica de la llamada a frecuencias y ring
- * con la cadencia del país. Tick de 1 ms. */
+/* signals.h — turns the logical call outputs into frequencies and ring
+ * with the country's cadence. 1 ms tick. */
 #ifndef SIGNALS_H
 #define SIGNALS_H
 
@@ -10,9 +10,9 @@
 #include "tones.h"
 
 typedef struct {
-    uint16_t f1[2], f2[2]; /* 0,0 = silencio */
+    uint16_t f1[2], f2[2]; /* 0,0 = silence */
     bool ring_on[2];
-    bool ring_phase;       /* polaridad del puente H */
+    bool ring_phase;       /* H-bridge polarity */
 } signals_out_t;
 
 typedef struct {

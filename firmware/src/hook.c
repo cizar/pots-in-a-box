@@ -24,7 +24,7 @@ hook_ev_t hook_sample(hook_t *h, bool closed, bool masked) {
     }
 
     if (!h->off) {
-        /* Colgado: esperar lazo cerrado estable. */
+        /* On-hook: wait for a stable closed loop. */
         if (!closed) {
             h->closed_ms = 0;
             return ev(HOOK_EV_NONE, 0);
@@ -38,7 +38,7 @@ hook_ev_t hook_sample(hook_t *h, bool closed, bool masked) {
         return ev(HOOK_EV_NONE, 0);
     }
 
-    /* Descolgado. */
+    /* Off-hook. */
     if (!closed) {
         h->closed_ms = 0;
         if (h->open_ms < UINT16_MAX) h->open_ms++;
@@ -52,7 +52,7 @@ hook_ev_t hook_sample(hook_t *h, bool closed, bool masked) {
     }
 
     if (h->open_ms) {
-        /* Se volvió a cerrar: ¿fue un pulso? Otras aperturas se ignoran. */
+        /* Loop closed again: was it a pulse? Other breaks are ignored. */
         if (h->open_ms >= PULSE_MIN_MS && h->open_ms <= PULSE_MAX_MS) h->pulses++;
         h->open_ms = 0;
     }

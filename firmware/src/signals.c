@@ -21,7 +21,7 @@ void signals_tick(signals_t *s, const call_outputs_t *o, country_t c, signals_ou
     for (uint8_t l = 0; l < 2; l++) {
         const signal_spec_t *ts = tones_spec(c, o->tone[l]);
 
-        /* La cadencia arranca en "on" cuando cambia el tono o el país. */
+        /* The cadence restarts "on" when the tone or the country changes. */
         if (o->tone[l] != s->tone[l] || country_changed) {
             s->tone[l] = o->tone[l];
             if (ts) cadence_start(&s->tone_cad[l], ts->on_ms, ts->off_ms);
@@ -40,7 +40,7 @@ void signals_tick(signals_t *s, const call_outputs_t *o, country_t c, signals_ou
         any_ring = any_ring || out->ring_on[l];
     }
 
-    /* Puente H: media onda de 500/f ms mientras haya ring. */
+    /* H-bridge: half period of 500/f ms while any line rings. */
     if (any_ring) {
         uint8_t half = (uint8_t)(500u / rs->f1_hz);
         if (s->phase_ms >= half) {

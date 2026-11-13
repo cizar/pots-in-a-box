@@ -12,8 +12,8 @@ void pbx_init(pbx_t *p) {
 }
 
 void pbx_step(pbx_t *p, const pbx_inputs_t *in, pbx_outputs_t *out) {
-    /* 1. Descolgado y pulsos; mientras suena la ring (tick anterior) el
-     *    lazo no se mira. */
+    /* 1. Hook and pulses; the loop is ignored while the ring was on
+     *    (previous tick). */
     for (uint8_t l = 0; l < 2; l++) {
         hook_ev_t e = hook_sample(&p->hook[l], in->loop_closed[l], p->ring_on_prev[l]);
         if (e.type == HOOK_EV_OFF) call_event(&p->call, l, CALL_EV_OFF);
@@ -21,7 +21,7 @@ void pbx_step(pbx_t *p, const pbx_inputs_t *in, pbx_outputs_t *out) {
         else if (e.type == HOOK_EV_DIGIT) call_event(&p->call, l, CALL_EV_DIGIT);
     }
 
-    /* 2. DTMF: un dígito por flanco de subida de StD, para la línea dueña. */
+    /* 2. DTMF: one digit per StD rising edge, for the owning line. */
     if (in->dtmf_std && !p->last_std) {
         int8_t line = call_outputs(&p->call).dtmf_line;
         if (line >= 0 && dtmf_code_to_digit(in->dtmf_code) >= 0)
@@ -29,13 +29,13 @@ void pbx_step(pbx_t *p, const pbx_inputs_t *in, pbx_outputs_t *out) {
     }
     p->last_std = in->dtmf_std;
 
-    /* 3. Lógica. */
+    /* 3. Logic. */
     call_tick(&p->call);
     call_outputs_t o = call_outputs(&p->call);
     signals_out_t s;
     signals_tick(&p->sig, &o, in->country, &s);
 
-    /* 4. Salidas. */
+    /* 4. Outputs. */
     for (uint8_t l = 0; l < 2; l++) {
         out->f1[l] = s.f1[l];
         out->f2[l] = s.f2[l];
