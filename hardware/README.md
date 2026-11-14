@@ -16,6 +16,10 @@ pata, bloque por bloque. Cada pata lleva un tramo corto de cable con el nombre d
 edita el `.kicad_sch` a mano y después se vuelve a correr el script, los cambios se pierden**:
 los cambios de circuito van en el script.
 
+**Hasta cuándo:** el script es la fuente hasta tener los resultados de la prueba de banco.
+Antes de diseñar el PCB se congela: desde ese momento los `.kicad_sch` pasan a ser la fuente,
+se editan solo en KiCad y el script queda como histórico.
+
 Verificación eléctrica (ERC), desde la raíz del repo:
 
 ```sh
