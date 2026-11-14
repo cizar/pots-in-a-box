@@ -11,8 +11,16 @@ python3 hardware/tools/gen_schematic.py
 ```
 
 El script (`hardware/tools/gen_schematic.py`) tiene la lista de componentes y la red de cada
-pata, bloque por bloque. Cada pata lleva un tramo corto de cable con el nombre de su red
-(o un símbolo de alimentación), así las conexiones son explícitas y verificables. **Si se
+pata, bloque por bloque. Cada hoja se dibuja de una de dos formas:
+
+- **Con cables** (hoy: `power`): una función de dibujo ubica cada componente y une las patas
+  con cables, puntos de unión y rieles de alimentación, como un esquemático hecho a mano.
+- **Con etiquetas** (el resto, por ahora): cada pata lleva un tramo corto de cable con el
+  nombre de su red. Es correcto, pero menos legible.
+
+Al terminar, el script exporta la netlist con `kicad-cli` y la **compara con la lista de
+redes del script**: si un cable quedó mal dibujado (un componente girado al revés, una unión
+de más o de menos), lo informa como problema. Tiene que decir `netlist check: OK`. **Si se
 edita el `.kicad_sch` a mano y después se vuelve a correr el script, los cambios se pierden**:
 los cambios de circuito van en el script.
 
@@ -56,5 +64,6 @@ Referencias: L1 usa la serie 100 (R101, U102…) y L2 la serie 200.
 - [ ] Valores finales de `V_LINE`, R_SENSE, acople y nivel de tono (salen de la prueba de banco).
 - [ ] Huella alternativa del transformador 600:600 en paralelo con el capacitor de acople (spec §7.4).
 - [ ] Elevador propio en la placa, en lugar del módulo.
-- [ ] Ordenar el dibujo: hoy es un esquemático "de etiquetas", correcto pero poco prolijo.
+- [x] Dibujo con cables: `power`.
+- [ ] Dibujo con cables: `mcu`, `ring`, `link`, `line`.
 - [ ] PCB: separar la zona de alta tensión (`V_LINE`, puente, relés, RJ11) de la lógica.

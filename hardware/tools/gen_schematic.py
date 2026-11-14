@@ -10,6 +10,8 @@ block is one sheet used twice (L1, L2). Re-run after editing the netlists
 below; hand edits to the generated .kicad_sch files are overwritten.
 """
 import json
+import math
+import subprocess
 import shutil
 import uuid
 from pathlib import Path
@@ -322,6 +324,50 @@ def lib_symbol(lib_id):
     return kl.dump(sym, 1)
 
 
+def pin_offset(pin, rot, mirror):
+    """Pin position relative to the symbol origin, in schematic coordinates (y down).
+    Verified against KiCad netlists for rotations 0/90/180/270."""
+    px, py = pin["x"], pin["y"]
+    if mirror:
+        px = -px
+    r = math.radians(rot)
+    return (round(px * math.cos(r) - py * math.sin(r), 3), round(-(px * math.sin(r) + py * math.cos(r)), 3))
+
+
+TWO_TERMINAL = ("Device:", "Diode:", "Switch:SW_SPST")
+
+
+def field_positions(lib_id, sym, pins, at, rot, mirror, power):
+    """Reference/Value positions that read horizontally and stay off the body."""
+    x, y = at
+    if power:
+        return (x, y + 2.54), (x + 2.54, y + 2.54), ""
+    offs = [pin_offset(p, rot, mirror) for p in pins.values()]
+    if len(pins) == 2 and lib_id.startswith(TWO_TERMINAL):
+        (ax, ay), (bx, by) = offs
+        if abs(ay - by) < 0.01:          # horizontal two-pin part: text above/below
+            return (x, y - 3.175), (x, y + 3.175), ""
+        if abs(ax - bx) < 0.01:          # vertical two-pin part: text to the right
+            return (x + 2.54, y - 1.27), (x + 2.54, y + 1.27), "left"
+    lib = {kl.unq(p[1]): p for p in kl.find(sym, "property")}
+
+    def lib_at(name, dflt):
+        if name not in lib:
+            return dflt
+        a = kl.find(lib[name], "at")[0]
+        ox, oy = pin_offset({"x": float(a[1]), "y": float(a[2])}, rot, mirror)
+        return (x + ox, y + oy)
+
+    def lib_just(name):
+        if name not in lib or rot or mirror:
+            return ""
+        eff = kl.find(lib[name], "effects")
+        j = kl.find(eff[0], "justify") if eff else []
+        return " ".join(j[0][1:]) if j else ""
+    return (lib_at("Reference", (x, y - 2.54)), lib_at("Value", (x, y + 2.54)),
+            (lib_just("Reference"), lib_just("Value")))
+
+
 def outward(angle):
     return {0: (-1, 0), 180: (1, 0), 90: (0, 1), 270: (0, -1)}[int(angle) % 360]
 
@@ -350,7 +396,7 @@ class Sheet:
         elif x >= self.TITLE_BLOCK[0] and y >= self.TITLE_BLOCK[1]:
             self.problems.append(f"{self.name}: {what} at ({x:.1f}, {y:.1f}) overlaps the title block")
 
-    def symbol(self, lib_id, at, ref, value, fp, desc, paths, unit=1, power=False):
+    def symbol(self, lib_id, at, ref, value, fp, desc, paths, unit=1, power=False, rot=0, mirror=False):
         self.lib_ids.add(lib_id)
         self.check_position(at[0], at[1], f"{paths[0][1]} ({lib_id})")
         sym = kl.get(lib_id, PROJECT_LIB)
@@ -358,23 +404,74 @@ class Sheet:
         x, y = at
         ref = paths[0][1]
         hide = "(hide yes)"
+        ref_at, val_at, just = field_positions(lib_id, sym, pins, at, rot, mirror, power)
+        fang = 90 if rot in (90, 270) else 0  # displayed angle = field angle + symbol rotation
+        rj, vj = just if isinstance(just, tuple) else (just, just)
+        if (fang + rot) % 360 == 180:   # KiCad flips 180-degree text: mirror the justification
+            flip = {"left": "right", "right": "left"}
+            rj, vj = flip.get(rj, rj), flip.get(vj, vj)
+        hide_value = lib_id == "power:PWR_FLAG"
         props = [
-            ("Reference", ref, (x + 2.54, y - 2.54), power),
-            ("Value", value, (x + 2.54, y + 2.54), False),
-            ("Footprint", fp, (x, y), True),
-            ("Datasheet", "~", (x, y), True),
-            ("Description", desc, (x, y), True),
+            ("Reference", ref, ref_at, power, rj),
+            ("Value", value, val_at, hide_value, vj),
+            ("Footprint", fp, (x, y), True, ""),
+            ("Datasheet", "~", (x, y), True, ""),
+            ("Description", desc, (x, y), True, ""),
         ]
         ptxt = "".join(
-            f'\n\t\t(property {q(k)} {q(v)} (at {px:g} {py:g} 0) (effects (font (size 1.27 1.27)) {hide if h else ""}))'
-            for k, v, (px, py), h in props)
+            f'\n\t\t(property {q(k)} {q(v)} (at {px:g} {py:g} {fang}) (effects (font (size 1.27 1.27)) '
+            f'{f"(justify {j})" if j else ""} {hide if h else ""}))'
+            for k, v, (px, py), h, j in props)
         pintxt = "".join(f'\n\t\t(pin {q(n)} (uuid {q(uid())}))' for n in pins)
         inst = "".join(f'(path {q(p)} (reference {q(r)}) (unit {unit}))' for p, r in paths)
         self.items.append(
-            f'\t(symbol (lib_id {q(lib_id)}) (at {x:g} {y:g} 0) (unit {unit}) (exclude_from_sim no) '
+            f'\t(symbol (lib_id {q(lib_id)}) (at {x:g} {y:g} {rot}){" (mirror y)" if mirror else ""} (unit {unit}) (exclude_from_sim no) '
             f'(in_bom {"no" if power else "yes"}) (on_board {"no" if power else "yes"}) (dnp no) (uuid {q(uid())})'
             f'{ptxt}{pintxt}\n\t\t(instances (project {q(PROJECT)} {inst})))')
         return pins
+
+    # --- wired drawing helpers -------------------------------------------------
+    def place_wired(self, part, paths_fn, rot=0, mirror=False, anchor=None, at=None):
+        """Place a part with rotation/mirror; return {pin: (x, y)}. anchor=(pin, point)
+        puts that pin exactly on the point. Unconnected pins ("~") get a no-connect."""
+        sym = kl.get(part.lib_id, PROJECT_LIB)
+        pins = kl.pins(sym)
+        if anchor:
+            ox, oy = pin_offset(pins[anchor[0]], rot, mirror)
+            at = (anchor[1][0] - ox, anchor[1][1] - oy)
+        at = (round(at[0], 3), round(at[1], 3))
+        self.symbol(part.lib_id, at, None, part.value, part.fp, part.desc, paths_fn(part.ref),
+                    rot=rot, mirror=mirror)
+        pts = {}
+        for n, pin in pins.items():
+            ox, oy = pin_offset(pin, rot, mirror)
+            pts[n] = (round(at[0] + ox, 3), round(at[1] + oy, 3))
+            if part.nets.get(n) == "~":
+                self.no_connect(pts[n])
+        missing = set(pins) - set(part.nets)
+        if missing:
+            raise SystemExit(f"{self.name}: {part.ref} pins without net: {missing}")
+        return pts
+
+    def path(self, *pts):
+        for a, b in zip(pts, pts[1:]):
+            if a != b:
+                self.wire(a, b)
+
+    def junction(self, pt):
+        self.items.append(f'\t(junction (at {pt[0]:g} {pt[1]:g}) (diameter 0) (color 0 0 0 0) (uuid {q(uid())}))')
+
+    def rail(self, pts):
+        """Straight rail through points (all on one line); junction at interior points."""
+        pts = sorted(set(pts))
+        self.path(*pts)
+        for p in pts[1:-1]:
+            self.junction(p)
+
+    def pwr_at(self, net, pt, rot=0):
+        self.pwr += 1
+        lib_id = POWER_NETS[net]
+        self.symbol(lib_id, pt, None, net, "", "", self.pwr_paths(self.pwr), power=True, rot=rot)
 
     def wire(self, a, b):
         self.items.append(f'\t(wire (pts (xy {a[0]:g} {a[1]:g}) (xy {b[0]:g} {b[1]:g})) (stroke (width 0) (type default)) (uuid {q(uid())}))')
@@ -442,6 +539,99 @@ class Sheet:
                 '\t(embedded_fonts no)\n)\n')
 
 
+def g(*v):
+    """Grid units -> mm."""
+    return tuple(x * GRID for x in v) if len(v) > 1 else v[0] * GRID
+
+
+def draw_power(sh, paths_fn):
+    """Power sheet drawn with wires: 12 V input, 5 V regulator, boost module -> V_LINE."""
+    parts = {p.ref: p for p in POWER}
+
+    def put(ref, **kw):
+        return sh.place_wired(parts[ref], paths_fn, **kw)
+
+    def flag(pt):
+        sh.symbol("power:PWR_FLAG", pt, None, "PWR_FLAG", "", "", sh.pwr_paths(0), power=True)
+
+    y0, yg = g(24), g(40)
+    sh.text("12 V input (external adapter)", g(12, 18))
+    sh.text("5 V regulator", g(47, 18))
+    j1 = put("J1", anchor=("1", g(12, 24)))
+    f1 = put("F1", rot=90, anchor=("1", g(18, 24)))
+    d1 = put("D1", rot=180, anchor=("2", g(24, 24)))
+    sh.path(j1["1"], (g(15), y0), f1["1"])
+    sh.junction((g(15), y0))
+    flag((g(15), y0))                                  # VIN_RAW is driven by the jack
+    sh.path(f1["2"], d1["2"])
+    sh.path(j1["2"], (g(14), j1["2"][1]), (g(14), yg))
+
+    caps12 = {"C1": 32, "C2": 38, "C3": 43}
+    u1 = put("U1", anchor=("1", g(48, 24)))
+    rail12 = [d1["1"], g(29, 24), g(30, 24), u1["1"]] + [g(x, 24) for x in caps12.values()]
+    sh.rail(rail12)
+    sh.path(g(29, 24), g(29, 21))
+    sh.pwr_at("+12V", g(29, 21))
+    flag(g(30, 24))
+    gnd_pts = [(g(14), yg), g(22, 40), g(23, 40), (u1["2"][0], yg)]
+    for ref, x in caps12.items():
+        c = put(ref, anchor=("1", g(x, 27)))
+        sh.path(g(x, 24), c["1"])
+        sh.path(c["2"], (g(x), yg))
+        gnd_pts.append((g(x), yg))
+    sh.path(u1["2"], (u1["2"][0], yg))
+
+    rail5 = [u1["3"], g(56, 24)]
+    for ref, x in {"C4": 58, "C5": 63}.items():
+        c = put(ref, anchor=("1", g(x, 27)))
+        sh.path(g(x, 24), c["1"])
+        sh.path(c["2"], (g(x), yg))
+        rail5.append(g(x, 24))
+        gnd_pts.append((g(x), yg))
+    r2 = put("R2", anchor=("1", g(70, 27)))
+    d2 = put("D2", rot=90, anchor=("2", g(70, 32)))
+    rail5.append(g(70, 24))
+    sh.rail(rail5)
+    sh.path(g(70, 24), r2["1"])
+    sh.path(r2["2"], d2["2"])
+    sh.path(d2["1"], (g(70), yg))
+    gnd_pts.append((g(70), yg))
+    sh.path(g(56, 24), g(56, 21))
+    sh.pwr_at("+5V", g(56, 21))
+    sh.rail(gnd_pts)
+    sh.path(g(22, 40), g(22, 42))
+    sh.pwr_at("GND", g(22, 42))
+    flag(g(23, 40))
+
+    # Boost module -> V_LINE (24-48 V).
+    sh.text("Boost module -> V_LINE (24-48 V)", g(8, 47))
+    y1, yg2 = g(52), g(66)
+    j2 = put("J2", mirror=True, anchor=("1", g(14, 52)))
+    sh.path(j2["1"], g(17, 52), g(17, 50))
+    sh.pwr_at("+12V", g(17, 50))
+    sh.path(j2["2"], g(15, 53))
+    sh.pwr_at("GND", g(15, 53), rot=90)
+    rail_v = [j2["3"], g(20, 54), g(21, 54)]
+    gnd2 = [g(16, 66), g(22, 66)]
+    for ref, x in {"R1": 26, "C6": 31}.items():
+        c = put(ref, anchor=("1", g(x, 57)))
+        sh.path(g(x, 54), c["1"])
+        sh.path(c["2"], g(x, 66))
+        rail_v.append(g(x, 54))
+        gnd2.append(g(x, 66))
+    sh.rail(rail_v)
+    sh.path(g(20, 54), g(20, 51))
+    sh.pwr_at("V_LINE", g(20, 51))
+    flag(g(21, 54))
+    sh.path(j2["4"], g(16, 55), g(16, 66))
+    sh.rail(gnd2)
+    sh.path(g(22, 66), g(22, 68))
+    sh.pwr_at("GND", g(22, 68))
+
+
+DRAW = {"power": draw_power}
+
+
 def build():
     missing = check_footprints()
     ROOT.mkdir(parents=True, exist_ok=True)
@@ -465,8 +655,12 @@ def build():
         sh.sheet_uuid = uid()
         path = f"{rp}/{sh.sheet_uuid}"
         sh.pwr_paths = lambda n, path=path: [(path, next_pwr())]
-        for part in parts:
-            sh.place(part, lambda ref, path=path: [(path, ref)])
+        if fname in DRAW:
+            DRAW[fname](sh, lambda ref, path=path: [(path, ref)])
+            flags = []
+        else:
+            for part in parts:
+                sh.place(part, lambda ref, path=path: [(path, ref)])
         for j, net in enumerate(flags):
             # PWR_FLAG on a short stub labelled with the net.
             at = ((10 + 8 * j) * GRID, 92 * GRID)
@@ -522,6 +716,63 @@ def build():
     return missing + problems
 
 
+def intended_nets():
+    """{key: set((ref, pin))} from the part tables, keyed like the real netlist would be."""
+    nets = {}
+
+    def add(key, node):
+        nets.setdefault(key, set()).add(node)
+
+    for sheet, parts in (("power", POWER), ("mcu", MCU), ("ring", RING), ("link", LINK)):
+        for p in parts:
+            for pin, n in p.nets.items():
+                if n == "~":
+                    continue
+                key = n if n in POWER_NETS else n[2:] if n.startswith("G:") else f"{sheet}/{n}"
+                add(key, (p.ref, pin))
+    for k in (0, 1):
+        for p in LINE:
+            letters = "".join(c for c in p.ref if not c.isdigit())
+            ref = f"{letters}{(k + 1) * 100 + int(''.join(c for c in p.ref if c.isdigit()))}"
+            for pin, n in p.nets.items():
+                if n == "~":
+                    continue
+                if n in POWER_NETS:
+                    key = n
+                elif n.startswith("H:"):
+                    key = LINE_HIER[n[2:]][1 + k]
+                else:
+                    key = f"line{k}/{n}"
+                add(key, (ref, pin))
+    return nets
+
+
+def verify_netlist():
+    """Export the netlist with kicad-cli and compare it with the part tables."""
+    cli = "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli"
+    out = ROOT / ".verify.net"
+    subprocess.run([cli, "sch", "export", "netlist", "-o", str(out), str(ROOT / f"{PROJECT}.kicad_sch")],
+                   check=True, capture_output=True)
+    tree = kl.parse(out.read_text())
+    out.unlink()
+    real = {}
+    for n in kl.find(kl.find(tree, "nets")[0], "net"):
+        name = kl.unq(kl.find(n, "name")[0][1])
+        real[name] = {(kl.unq(kl.find(x, "ref")[0][1]), kl.unq(kl.find(x, "pin")[0][1]))
+                      for x in kl.find(n, "node")}
+    where = {node: name for name, nodes in real.items() for node in nodes}
+    errors = []
+    for key, nodes in sorted(intended_nets().items()):
+        found = {where.get(nd) for nd in nodes}
+        if len(found) != 1 or None in found:
+            errors.append(f"net {key}: pins split across {sorted(map(str, found))}")
+            continue
+        extra = real[found.pop()] - nodes
+        if extra:
+            errors.append(f"net {key}: also joined to {sorted(extra)}")
+    return errors
+
+
 def sheet_symbol(name, title, sheet_uuid, at, size, pins, root_path, page, line_file=False):
     x, y = at
     w, h = size
@@ -558,6 +809,10 @@ def write_project_files():
 if __name__ == "__main__":
     missing = build()
     print("written to", ROOT)
+    errs = verify_netlist()
+    print("netlist check:", "OK" if not errs else f"{len(errs)} problem(s)")
+    for e in errs:
+        print("  ", e)
     if missing:
         print("problems:")
         for m in missing:
