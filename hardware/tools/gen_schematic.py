@@ -126,11 +126,11 @@ POWER_FLAGS = ["+12V", "GND", "V_LINE", "VIN_RAW"]
 # MCU: ATmega328P (pin map = firmware/README.md, Arduino Uno compatible).
 MCU = [
     P("U2", "MCU_Microchip_ATmega:ATmega328P-P", "ATmega328P-P", "DIP28", (40, 40), {
-        "1": "RESET", "2": "UART_RX", "3": "UART_TX", "4": "G:DTMF_STD_L1", "5": "LED_CALL",
+        "1": "G:RESET", "2": "G:UART_RX", "3": "G:UART_TX", "4": "G:DTMF_STD_L1", "5": "G:LED_CALL",
         "6": "G:RING_DRIVE", "7": "+5V", "8": "GND", "9": "XTAL1", "10": "XTAL2",
         "11": "G:TONE_L2", "12": "G:TONE_L1", "13": "G:DTMF_STD_L2",
         "14": "G:RING_EN_L1", "15": "G:RING_EN_L2", "16": "G:LINK_EN",
-        "17": "MOSI", "18": "COUNTRY_SW", "19": "SCK", "20": "+5V", "21": "AREF", "22": "GND",
+        "17": "G:MOSI", "18": "G:COUNTRY_SW", "19": "G:SCK", "20": "+5V", "21": "AREF", "22": "GND",
         "23": "G:OFFHOOK_L1", "24": "G:OFFHOOK_L2", "25": "G:DTMF_Q1", "26": "G:DTMF_Q2",
         "27": "G:DTMF_Q3", "28": "G:DTMF_Q4"}),
     two("Y1", "XTAL", "16MHz", "XTAL", (12, 30), "XTAL1", "XTAL2"),
@@ -139,18 +139,18 @@ MCU = [
     two("C12", "C", "100nF", "C", (70, 12), "+5V", "GND", "VCC decoupling"),
     two("C13", "C", "100nF", "C", (76, 12), "+5V", "GND", "AVCC decoupling"),
     two("C14", "C", "100nF", "C", (82, 12), "AREF", "GND"),
-    two("R10", "R", "10k", "R", (8, 12), "+5V", "RESET"),
+    two("R10", "R", "10k", "R", (8, 12), "+5V", "G:RESET"),
     P("J3", "Connector:AVR-ISP-6", "ISP", "ISP", (75, 40),
-      {"1": "COUNTRY_SW", "2": "+5V", "3": "SCK", "4": "MOSI", "5": "RESET", "6": "GND"},
+      {"1": "G:COUNTRY_SW", "2": "+5V", "3": "G:SCK", "4": "G:MOSI", "5": "G:RESET", "6": "GND"},
       "ISP. MISO is PB4, shared with COUNTRY_SW through R11 (ISP-safe)."),
     P("J4", "Connector_Generic:Conn_01x06", "FTDI", "H6", (75, 62),
-      {"1": "GND", "2": "~", "3": "+5V", "4": "UART_RX", "5": "UART_TX", "6": "DTR"},
+      {"1": "GND", "2": "~", "3": "+5V", "4": "G:UART_RX", "5": "G:UART_TX", "6": "G:DTR"},
       "USB-serial (FTDI-style): 1 GND, 2 CTS, 3 VCC, 4 TXD (to MCU RX), 5 RXD (from MCU TX), 6 DTR"),
-    two("C15", "C", "100nF", "C", (88, 66), "DTR", "RESET", "Auto-reset for Optiboot"),
-    two("R11", "R", "1k", "R", (75, 82), "COUNTRY_SW", "SW_AR_US"),
+    two("C15", "C", "100nF", "C", (88, 66), "G:DTR", "G:RESET", "Auto-reset for Optiboot"),
+    two("R11", "R", "1k", "R", (75, 82), "G:COUNTRY_SW", "SW_AR_US"),
     P("SW1", "Switch:SW_SPST", "AR/US", "H2", (84, 85), {"1": "SW_AR_US", "2": "GND"},
       "Panel switch: open = AR, closed = US"),
-    two("R12", "R", "470", "R", (12, 62), "LED_CALL", "LED_CALL_A"),
+    two("R12", "R", "470", "R", (12, 62), "G:LED_CALL", "LED_CALL_A"),
     two("D10", "LED", "CALL", "LED", (12, 72), "GND", "LED_CALL_A", "Call-active LED (panel)"),
     two("R13", "R", "10k", "R", (22, 62), "G:RING_DRIVE", "GND", "Keeps the bridge defined during reset/ISP"),
 ]
@@ -340,6 +340,10 @@ def field_positions(lib_id, sym, pins, at, rot, mirror, power):
     """Reference/Value positions that read horizontally and stay off the body."""
     x, y = at
     if power:
+        if rot in (90, 270):  # horizontal power symbol: text past the graphic
+            right = (rot == 270) != (lib_id == "power:GND")
+            vx = x + (4.6 if right else -4.6)
+            return (x, y + 2.54), (vx, y), ""
         return (x, y + 2.54), (x + 2.54, y + 2.54), ""
     offs = [pin_offset(p, rot, mirror) for p in pins.values()]
     if len(pins) == 2 and lib_id.startswith(TWO_TERMINAL):
@@ -894,7 +898,122 @@ def draw_ring(sh, paths_fn):
     stub(sh, q7["3"], DOWN, "GND", 2)
 
 
-DRAW = {"power": draw_power, "ring": draw_ring}
+def draw_mcu(sh, paths_fn):
+    """MCU sheet: ATmega328P with labelled I/O; local circuits drawn with wires."""
+    parts = {p.ref: p for p in MCU}
+
+    def put(ref, **kw):
+        return sh.place_wired(parts[ref], paths_fn, **kw)
+
+    P = lambda x, y: g(x, y)
+    sh.text("ATmega328P - pin map = firmware/README.md (Arduino Uno compatible)", P(8, 9))
+    u = put("U2", anchor=("7", P(40, 25)))
+    # Supply, decoupling and AREF.
+    sh.path(u["7"], P(40, 21), P(40, 18), P(40, 16))
+    term(sh, "+5V", P(40, 16), UP)
+    sh.path(u["20"], P(41, 21), P(40, 21))
+    sh.junction(P(40, 21))
+    c12, c13 = put("C12", anchor=("1", P(35, 19))), put("C13", anchor=("1", P(30, 19)))
+    sh.rail([P(40, 18), P(35, 18), P(30, 18)])
+    for c, x in ((c12, 35), (c13, 30)):
+        sh.path(P(x, 18), c["1"])
+        stub(sh, c["2"], DOWN, "GND", 1)
+    c14 = put("C14", anchor=("1", P(28, 29)))
+    sh.path(u["21"], P(28, 28), c14["1"])
+    stub(sh, c14["2"], DOWN, "GND", 1)
+    stub(sh, u["8"], DOWN, "GND", 2)
+    # I/O on the right side.
+    io = {"14": "G:RING_EN_L1", "15": "G:RING_EN_L2", "16": "G:LINK_EN", "17": "G:MOSI",
+          "18": "G:COUNTRY_SW", "19": "G:SCK", "23": "G:OFFHOOK_L1", "24": "G:OFFHOOK_L2",
+          "25": "G:DTMF_Q1", "26": "G:DTMF_Q2", "27": "G:DTMF_Q3", "28": "G:DTMF_Q4",
+          "1": "G:RESET", "2": "G:UART_RX", "3": "G:UART_TX", "4": "G:DTMF_STD_L1", "5": "G:LED_CALL",
+          "6": "G:RING_DRIVE", "11": "G:TONE_L2", "12": "G:TONE_L1", "13": "G:DTMF_STD_L2"}
+    for pin, net in io.items():
+        stub(sh, u[pin], RIGHT, net, 2)
+    # 16 MHz crystal.
+    sh.text("16 MHz", P(62, 31))
+    y1 = put("Y1", rot=270, anchor=("1", P(64, 34)))
+    c10, c11 = put("C10", anchor=("1", P(70, 35))), put("C11", anchor=("1", P(64, 39)))
+    sh.path(u["9"], y1["1"])
+    sh.path(y1["1"], P(70, 34), c10["1"])
+    sh.junction(y1["1"])
+    sh.path(u["10"], P(62, 35), P(62, 37), y1["2"])
+    sh.path(y1["2"], c11["1"])
+    sh.junction(y1["2"])
+    stub(sh, c10["2"], DOWN, "GND", 1)
+    stub(sh, c11["2"], DOWN, "GND", 1)
+    # ISP header and reset network (pull-up, auto-reset from DTR).
+    sh.text("ISP / reset", P(76, 15))
+    j3 = put("J3", anchor=("2", P(79, 20)))
+    stub(sh, j3["2"], UP, "+5V", 1)
+    stub(sh, j3["6"], DOWN, "GND", 1)
+    for pin, net in (("1", "G:COUNTRY_SW"), ("4", "G:MOSI"), ("3", "G:SCK")):
+        stub(sh, j3[pin], RIGHT, net, 2)
+    r10 = put("R10", anchor=("2", P(96, 25)))
+    sh.path(j3["5"], P(96, 26), r10["2"])
+    stub(sh, r10["1"], UP, "+5V", 2)
+    sh.path(P(96, 26), P(99, 26))
+    sh.junction(P(96, 26))
+    term(sh, "G:RESET", P(99, 26), RIGHT)
+    c15 = put("C15", rot=180, anchor=("2", P(96, 28)))
+    sh.path(P(96, 26), c15["2"])
+    # USB-serial header (FTDI style).
+    sh.text("USB-serial (FTDI)", P(80, 35))
+    j4 = put("J4", mirror=True, anchor=("6", P(88, 43)))
+    sh.path(j4["6"], P(96, 43), c15["1"])
+    stub(sh, j4["1"], RIGHT, "GND", 2)
+    stub(sh, j4["3"], RIGHT, "+5V", 2)
+    stub(sh, j4["4"], RIGHT, "G:UART_RX", 2)
+    stub(sh, j4["5"], RIGHT, "G:UART_TX", 2)
+    # Call LED, RING_DRIVE pull-down, AR/US switch.
+    sh.text("Call LED / PD4 pull-down / AR-US switch (1k keeps ISP working)", P(8, 61))
+    r12 = put("R12", rot=90, anchor=("1", P(12, 66)))
+    d10 = put("D10", rot=180, anchor=("2", P(18, 66)))
+    stub(sh, r12["1"], LEFT, "G:LED_CALL", 2)
+    sh.path(r12["2"], d10["2"])
+    stub(sh, d10["1"], RIGHT, "GND", 1)
+    r13 = put("R13", rot=90, anchor=("1", P(12, 72)))
+    stub(sh, r13["1"], LEFT, "G:RING_DRIVE", 2)
+    stub(sh, r13["2"], RIGHT, "GND", 1)
+    r11 = put("R11", rot=90, anchor=("1", P(12, 78)))
+    sw = put("SW1", anchor=("1", P(18, 78)))
+    stub(sh, r11["1"], LEFT, "G:COUNTRY_SW", 2)
+    sh.path(r11["2"], sw["1"])
+    stub(sh, sw["2"], RIGHT, "GND", 1)
+
+
+def draw_link(sh, paths_fn):
+    """Relay driver (ULN2003A) and the L1-L2 audio link relay."""
+    parts = {p.ref: p for p in LINK}
+
+    def put(ref, **kw):
+        return sh.place_wired(parts[ref], paths_fn, **kw)
+
+    P = lambda x, y: g(x, y)
+    sh.text("Relay driver (ULN2003A, internal flyback diodes to COM) and L1-L2 link relay", P(8, 15))
+    u = put("U5", anchor=("1", P(26, 28)))
+    for pin, net in (("1", "G:RING_EN_L1"), ("2", "G:RING_EN_L2"), ("3", "G:LINK_EN")):
+        stub(sh, u[pin], LEFT, net, 3)
+    for pin in ("4", "5", "6", "7"):
+        sh.path(u[pin], (g(25), u[pin][1]))
+    sh.rail([P(25, 31), P(25, 32), P(25, 33), P(25, 34), P(25, 36)])
+    term(sh, "GND", P(25, 36), DOWN)
+    stub(sh, u["8"], DOWN, "GND", 2)
+    sh.path(u["9"], P(36, 26), P(36, 24))
+    term(sh, "+12V", P(36, 24), UP)
+    stub(sh, u["16"], RIGHT, "G:RELAY_RING_L1", 3)
+    stub(sh, u["15"], RIGHT, "G:RELAY_RING_L2", 3)
+    k3 = put("K3", anchor=("16", P(46, 33)))
+    sh.path(u["14"], P(40, 30), P(40, 33), k3["16"])
+    stub(sh, k3["1"], UP, "+12V", 2)
+    stub(sh, k3["4"], DOWN, "G:AUDIO_L1", 2)
+    stub(sh, k3["8"], UP, "G:AUDIO_L2", 2)
+    c30 = put("C30", anchor=("1", P(16, 22)))
+    stub(sh, c30["1"], UP, "+12V", 1)
+    stub(sh, c30["2"], DOWN, "GND", 1)
+
+
+DRAW = {"power": draw_power, "ring": draw_ring, "mcu": draw_mcu, "link": draw_link}
 
 
 def build():

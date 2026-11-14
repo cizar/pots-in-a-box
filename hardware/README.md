@@ -11,12 +11,10 @@ python3 hardware/tools/gen_schematic.py
 ```
 
 El script (`hardware/tools/gen_schematic.py`) tiene la lista de componentes y la red de cada
-pata, bloque por bloque. Cada hoja se dibuja de una de dos formas:
-
-- **Con cables** (hoy: `power`, `line` y `ring`): una función de dibujo ubica cada componente y une las patas
-  con cables, puntos de unión y rieles de alimentación, como un esquemático hecho a mano.
-- **Con etiquetas** (el resto, por ahora): cada pata lleva un tramo corto de cable con el
-  nombre de su red. Es correcto, pero menos legible.
+pata, bloque por bloque, y una función de dibujo por hoja que ubica los componentes y une las
+patas con cables, puntos de unión y rieles de alimentación, como un esquemático hecho a mano.
+Se usan etiquetas solo donde un cable tendría que cruzar otros (las E/S del ATmega, los
+contactos del relé de ring, las salidas del MT8870) o para ir a otra hoja.
 
 Al terminar, el script exporta la netlist con `kicad-cli` y la **compara con la lista de
 redes del script**: si un cable quedó mal dibujado (un componente girado al revés, una unión
@@ -66,6 +64,5 @@ Referencias: L1 usa la serie 100 (R101, U102…) y L2 la serie 200.
 - [ ] Valores finales de `V_LINE`, R_SENSE, acople y nivel de tono (salen de la prueba de banco).
 - [ ] Huella alternativa del transformador 600:600 en paralelo con el capacitor de acople (spec §7.4).
 - [ ] Elevador propio en la placa, en lugar del módulo.
-- [x] Dibujo con cables: `power`, `line`, `ring`.
-- [ ] Dibujo con cables: `mcu`, `link`.
+- [x] Dibujo con cables en todas las hojas.
 - [ ] PCB: separar la zona de alta tensión (`V_LINE`, puente, relés, RJ11) de la lógica.
