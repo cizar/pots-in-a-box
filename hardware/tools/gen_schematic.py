@@ -336,10 +336,23 @@ class Sheet:
         self.name, self.title = name, title
         self.uuid = uid()
         self.items, self.lib_ids = [], set()
+        self.problems = []
         self.pwr = 0
+
+    # A3 drawing area (mm) and the title block in its bottom-right corner.
+    FRAME = (12.7, 12.7, 407.0, 284.0)
+    TITLE_BLOCK = (230.0, 245.0)
+
+    def check_position(self, x, y, what):
+        x0, y0, x1, y1 = self.FRAME
+        if not (x0 <= x <= x1 and y0 <= y <= y1):
+            self.problems.append(f"{self.name}: {what} at ({x:.1f}, {y:.1f}) is outside the frame")
+        elif x >= self.TITLE_BLOCK[0] and y >= self.TITLE_BLOCK[1]:
+            self.problems.append(f"{self.name}: {what} at ({x:.1f}, {y:.1f}) overlaps the title block")
 
     def symbol(self, lib_id, at, ref, value, fp, desc, paths, unit=1, power=False):
         self.lib_ids.add(lib_id)
+        self.check_position(at[0], at[1], f"{paths[0][1]} ({lib_id})")
         sym = kl.get(lib_id, PROJECT_LIB)
         pins = kl.pins(sym)
         x, y = at
@@ -456,7 +469,7 @@ def build():
             sh.place(part, lambda ref, path=path: [(path, ref)])
         for j, net in enumerate(flags):
             # PWR_FLAG on a short stub labelled with the net.
-            at = ((118 + 6 * j) * GRID, 104 * GRID)
+            at = ((10 + 8 * j) * GRID, 92 * GRID)
             pins = sh.symbol("power:PWR_FLAG", at, None, "PWR_FLAG", "", "", [(path, next_pwr())], power=True)
             tip = (at[0], at[1] + 5.08)
             sh.wire(at, tip)
@@ -505,7 +518,8 @@ def build():
         (ROOT / f"{fname}.kicad_sch").write_text(sh.render())
     (ROOT / "line.kicad_sch").write_text(line.render())
     write_project_files()
-    return missing
+    problems = root.problems + line.problems + [p for _, _, sh, _ in sheets for p in sh.problems]
+    return missing + problems
 
 
 def sheet_symbol(name, title, sheet_uuid, at, size, pins, root_path, page, line_file=False):
@@ -545,6 +559,6 @@ if __name__ == "__main__":
     missing = build()
     print("written to", ROOT)
     if missing:
-        print("footprints not found (fix FP table):")
+        print("problems:")
         for m in missing:
             print("  ", m)
