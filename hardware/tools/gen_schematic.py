@@ -162,7 +162,7 @@ def half_bridge(n, x, drive):
     out = "G:RING_A" if n == 0 else "G:RING_B"
     return [
         P(u, "Driver_FET:IR2104", "IR2104", "DIP8", (x, 30), {
-            "1": "+12V", "2": drive, "3": f"SD{n}", "4": "GND", "5": f"LO{n}",
+            "1": "+12V", "2": drive, "3": "+12V", "4": "GND", "5": f"LO{n}",
             "6": out, "7": f"HO{n}", "8": f"VB{n}"}),
         P(qh, "Transistor_FET:IRF540N", "IRF540N", "TO220", (x + 22, 20),
           {"1": f"HG{n}", "2": "BRIDGE_RAIL", "3": out}),
@@ -173,7 +173,6 @@ def half_bridge(n, x, drive):
         two(f"D{20 + n}", "D", "UF4007", "D41", (x - 2, 12), f"VB{n}", "+12V", "Bootstrap diode"),
         two(f"C{20 + n}", "CP", "10uF 25V", "CP8", (x + 6, 12), f"VB{n}", out, "Bootstrap capacitor"),
         two(f"C{22 + n}", "C", "100nF", "C", (x - 8, 40), "+12V", "GND"),
-        two(f"R{27 + n}", "R", "10k", "R", (x - 8, 24), "+5V", f"SD{n}", "~SD pull-up (driver enabled)"),
     ]
 
 
@@ -808,7 +807,94 @@ def draw_line(sh, paths_fn):
     stub(sh, u1["4"], RIGHT, "H:OFFHOOK", 3)
 
 
-DRAW = {"power": draw_power}
+def draw_ring(sh, paths_fn):
+    """Shared ring H-bridge: two IR2104 half bridges drawn the classic way."""
+    parts = {p.ref: p for p in RING}
+
+    def put(ref, **kw):
+        return sh.place_wired(parts[ref], paths_fn, **kw)
+
+    P = lambda x, y: g(x, y)
+    sh.text("Ring generator: shared H-bridge (2 x IR2104 + 4 x IRF540N)", P(6, 10))
+    sh.text("~SD tied to VCC (logic input rated to VCC): drivers always enabled", P(6, 12.5))
+
+    # Bridge rail: V_LINE -> R_BRIDGE -> both high-side drains.
+    r20 = put("R20", rot=90, anchor=("1", P(8, 20)))
+    term(sh, "V_LINE", P(6, 18), UP)
+    sh.path(P(6, 18), P(6, 20), r20["1"])
+    c24 = put("C24", anchor=("1", P(14, 22)))
+    rail = [r20["2"], P(14, 20)]
+    sh.path(P(14, 20), c24["1"])
+    stub(sh, c24["2"], DOWN, "GND", 1)
+    gnd = []
+
+    for n, ox, drive, out in ((0, 0, "G:RING_DRIVE", "G:RING_A"), (1, 40, "RING_DRIVE_N", "G:RING_B")):
+        X = lambda x: x + ox
+        u = put(f"U{3 + n}", anchor=("1", P(X(24), 35)))
+        qh = put(f"Q{3 + 2 * n}", anchor=("1", P(X(40), 32)))
+        ql = put(f"Q{4 + 2 * n}", anchor=("1", P(X(40), 48)))
+        rh = put(f"R{21 + 2 * n}", rot=90, anchor=("1", P(X(35), 32)))
+        rl = put(f"R{22 + 2 * n}", rot=90, anchor=("1", P(X(35), 48)))
+        cb = put(f"C{20 + n}", anchor=("1", P(X(47), 35)))
+        db = put(f"D{20 + n}", rot=90, anchor=("1", P(X(47), 32)))
+        cd = put(f"C{22 + n}", anchor=("1", P(X(16), 33)))
+        sh.text(f"Leg {'AB'[n]}", P(X(22), 27))
+        # Supply and decoupling.
+        sh.path(u["1"], P(X(24), 32), P(X(24), 31))
+        term(sh, "+12V", P(X(24), 31), UP)
+        sh.path(P(X(24), 32), P(X(16), 32), cd["1"])
+        sh.junction(P(X(24), 32))
+        stub(sh, cd["2"], DOWN, "GND", 1)
+        # Inputs.
+        stub(sh, u["2"], LEFT, drive, 4)
+        sh.path(u["3"], P(X(20), 41), P(X(20), 43))
+        term(sh, "+12V", P(X(20), 43), DOWN)
+        # Gate drive.
+        sh.path(u["7"], P(X(33), 38), P(X(33), 32), rh["1"])
+        sh.path(rh["2"], qh["1"])
+        sh.path(u["5"], P(X(31), 43), P(X(31), 48), rl["1"])
+        sh.path(rl["2"], ql["1"])
+        # Output node: high-side source, low-side drain, VS, bootstrap, ring output.
+        sh.path(qh["3"], P(X(43), 40), P(X(43), 42), P(X(43), 44), ql["2"])
+        for y in (40, 42, 44):
+            sh.junction(P(X(43), y))
+        sh.path(u["6"], P(X(43), 42))
+        sh.path(P(X(43), 40), P(X(47), 40), cb["2"])
+        stub(sh, P(X(43), 44), RIGHT, out, 6)
+        # Bootstrap: +12V -> diode -> VB node -> capacitor -> VS.
+        sh.path(cb["1"], P(X(47), 33), db["1"])
+        sh.junction(P(X(47), 33))
+        stub(sh, P(X(47), 33), RIGHT, f"VB{n}", 2)
+        stub(sh, db["2"], UP, "+12V", 2)
+        stub(sh, u["8"], RIGHT, f"VB{n}", 1)
+        # Rail and ground.
+        sh.path(qh["2"], P(X(43), 20))
+        rail.append(P(X(43), 20))
+        sh.path(u["4"], P(X(24), 54))
+        sh.path(ql["3"], P(X(43), 54))
+        gnd += [P(X(24), 54), P(X(43), 54)]
+
+    sh.rail(rail)
+    gnd.append(P(52, 54))
+    sh.rail(gnd)
+    stub(sh, P(52, 54), DOWN, "GND", 2)
+
+    # Inverter for leg B.
+    sh.text("Inverter: leg B gets the complement of RING_DRIVE", P(6, 60))
+    q7 = put("Q7", anchor=("2", P(22, 73)))
+    r25 = put("R25", rot=90, anchor=("2", P(20, 73)))
+    sh.path(r25["2"], q7["2"])
+    stub(sh, r25["1"], LEFT, "G:RING_DRIVE", 2)
+    r26 = put("R26", anchor=("2", P(25, 70)))
+    sh.path(q7["1"], P(25, 70.5), r26["2"])
+    stub(sh, r26["1"], UP, "+5V", 2)
+    sh.path(P(25, 70.5), P(27, 70.5))
+    sh.junction(P(25, 70.5))
+    term(sh, "RING_DRIVE_N", P(27, 70.5), RIGHT)
+    stub(sh, q7["3"], DOWN, "GND", 2)
+
+
+DRAW = {"power": draw_power, "ring": draw_ring}
 
 
 def build():

@@ -13,7 +13,7 @@ python3 hardware/tools/gen_schematic.py
 El script (`hardware/tools/gen_schematic.py`) tiene la lista de componentes y la red de cada
 pata, bloque por bloque. Cada hoja se dibuja de una de dos formas:
 
-- **Con cables** (hoy: `power` y `line`): una función de dibujo ubica cada componente y une las patas
+- **Con cables** (hoy: `power`, `line` y `ring`): una función de dibujo ubica cada componente y une las patas
   con cables, puntos de unión y rieles de alimentación, como un esquemático hecho a mano.
 - **Con etiquetas** (el resto, por ahora): cada pata lleva un tramo corto de cable con el
   nombre de su red. Es correcto, pero menos legible.
@@ -52,6 +52,8 @@ Referencias: L1 usa la serie 100 (R101, U102…) y L2 la serie 200.
 
 - **Puente H con IR2104** (driver de medio puente de 600 V con tiempo muerto interno) y 4
   MOSFET de canal N, en lugar del puente con MOSFET de canal P de la prueba de banco.
+  La pata ~SD de cada IR2104 va directo a +12 V (la entrada admite hasta VCC), sin
+  resistencia de pull-up: los drivers quedan siempre habilitados.
 - **Elevador como módulo:** `J2` es una bornera para el módulo elevador. El elevador propio
   (por ejemplo MC34063 + MOSFET) se diseña con los resultados de la prueba de banco.
 - **Un cristal por MT8870.** Compartir uno queda para cuando se confirme en la prueba.
@@ -64,6 +66,6 @@ Referencias: L1 usa la serie 100 (R101, U102…) y L2 la serie 200.
 - [ ] Valores finales de `V_LINE`, R_SENSE, acople y nivel de tono (salen de la prueba de banco).
 - [ ] Huella alternativa del transformador 600:600 en paralelo con el capacitor de acople (spec §7.4).
 - [ ] Elevador propio en la placa, en lugar del módulo.
-- [x] Dibujo con cables: `power`, `line`.
-- [ ] Dibujo con cables: `mcu`, `ring`, `link`.
+- [x] Dibujo con cables: `power`, `line`, `ring`.
+- [ ] Dibujo con cables: `mcu`, `link`.
 - [ ] PCB: separar la zona de alta tensión (`V_LINE`, puente, relés, RJ11) de la lógica.
