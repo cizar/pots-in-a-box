@@ -1,7 +1,7 @@
 (kicad_symbol_lib (version 20241209) (generator "pots-gen")
 (symbol "MT8870" (pin_names (offset 1.016)) (exclude_from_sim no) (in_bom yes) (on_board yes)
   (property "Reference" "U" (at -10.16 16.51 0) (effects (font (size 1.27 1.27))))
-  (property "Value" "MT8870" (at 2.54 16.51 0) (effects (font (size 1.27 1.27))))
+  (property "Value" "MT8870" (at 10.16 16.51 0) (effects (font (size 1.27 1.27))))
   (property "Footprint" "Package_DIP:DIP-18_W7.62mm" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
   (property "Datasheet" "https://www.microsemi.com/document-portal/doc_download/127041-mt8870d-datasheet" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
   (property "Description" "DTMF receiver, DIP-18" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))

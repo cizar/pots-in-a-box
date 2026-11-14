@@ -295,7 +295,7 @@ def mt8870_symbol():
         pins.append(f'(pin {typ} line (at {x:g} {y:g} {a}) (length 2.54) (name {q(name)} {font}) (number {q(num)} {font}))')
     return f'''(symbol "MT8870" (pin_names (offset 1.016)) (exclude_from_sim no) (in_bom yes) (on_board yes)
   (property "Reference" "U" (at -10.16 16.51 0) {font})
-  (property "Value" "MT8870" (at 2.54 16.51 0) {font})
+  (property "Value" "MT8870" (at 10.16 16.51 0) {font})
   (property "Footprint" "Package_DIP:DIP-18_W7.62mm" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
   (property "Datasheet" "https://www.microsemi.com/document-portal/doc_download/127041-mt8870d-datasheet" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
   (property "Description" "DTMF receiver, DIP-18" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -364,8 +364,12 @@ def field_positions(lib_id, sym, pins, at, rot, mirror, power):
         eff = kl.find(lib[name], "effects")
         j = kl.find(eff[0], "justify") if eff else []
         return " ".join(j[0][1:]) if j else ""
-    return (lib_at("Reference", (x, y - 2.54)), lib_at("Value", (x, y + 2.54)),
-            (lib_just("Reference"), lib_just("Value")))
+    ref_at, val_at = lib_at("Reference", (x, y - 2.54)), lib_at("Value", (x, y + 2.54))
+    rj, vj = lib_just("Reference"), lib_just("Value")
+    if abs(ref_at[1] - val_at[1]) < 0.01 and abs(ref_at[0] - val_at[0]) < 12:
+        bottom = max(o[1] for o in offs)
+        val_at, vj = (x, y + bottom + 2.54), ""
+    return ref_at, val_at, (rj, vj)
 
 
 def outward(angle):
@@ -629,6 +633,181 @@ def draw_power(sh, paths_fn):
     sh.pwr_at("GND", g(22, 68))
 
 
+def term(sh, net, pt, d):
+    """Terminate a wire end: power symbol, hierarchical/global/local label, facing d."""
+    if net in POWER_NETS:
+        up = {(0, -1): 0, (0, 1): 180, (-1, 0): 90, (1, 0): 270}
+        down = {(0, 1): 0, (0, -1): 180, (-1, 0): 270, (1, 0): 90}
+        sh.pwr_at(net, pt, rot=(down if net == "GND" else up)[d])
+    elif net.startswith("H:"):
+        sh.label("hier", net[2:], pt, d, LINE_HIER[net[2:]][0])
+    elif net.startswith("G:"):
+        sh.label("global", net[2:], pt, d)
+    else:
+        sh.label("local", net, pt, d)
+
+
+def stub(sh, pin_pt, d, net, length=1):
+    tip = (pin_pt[0] + d[0] * g(length), pin_pt[1] + d[1] * g(length))
+    sh.path(pin_pt, tip)
+    term(sh, net, tip, d)
+    return tip
+
+
+UP, DOWN, LEFT, RIGHT = (0, -1), (0, 1), (-1, 0), (1, 0)
+
+
+def draw_line(sh, paths_fn):
+    """Line block drawn with wires (labels only where a wire would have to cross)."""
+    parts = {p.ref: p for p in LINE}
+
+    def put(ref, **kw):
+        return sh.place_wired(parts[ref], paths_fn, **kw)
+
+    P = lambda x, y: g(x, y)
+
+    # --- Loop feed: current limiter (~24 mA) ---------------------------------
+    sh.text("Loop feed: current limiter (~24 mA)", P(7, 7))
+    f1 = put("F1", rot=90, anchor=("1", P(8, 12)))
+    term(sh, "V_LINE", P(6, 10), UP)
+    sh.path(P(6, 10), P(6, 12), f1["1"])
+    r1 = put("R1", anchor=("1", P(14, 13)))
+    q1 = put("Q1", anchor=("2", P(22, 14)))
+    sh.path(f1["2"], P(14, 12), P(22, 12), q1["2"])
+    sh.junction(P(14, 12))
+    sh.path(P(14, 12), r1["1"])
+    sh.path(r1["2"], P(17, 16), q1["3"])
+    sh.junction(P(17, 16))
+    q2 = put("Q2", mirror=True, anchor=("2", P(20, 19)))
+    sh.path(q2["1"], P(17, 16))
+    r2 = put("R2", anchor=("1", P(22, 20)))
+    sh.path(q1["1"], P(22, 19), r2["1"])
+    sh.path(q2["2"], P(22, 19))
+    sh.junction(P(22, 19))
+    sh.path(r2["2"], P(22, 25))
+    sh.path(q2["3"], P(17, 25), P(22, 25))
+    sh.junction(P(22, 25))
+
+    # --- Audio coupling (NC side of the ring relay) and protection -------------
+    sh.text("Audio coupling and protection", P(28, 17))
+    c1 = put("C1", rot=90, anchor=("1", P(28, 25)))
+    sh.path(P(22, 25), P(26, 25), c1["1"])
+    sh.junction(P(26, 25))
+    stub(sh, P(26, 25), UP, "TIP_FEED", 2)
+    r3 = put("R3", rot=90, anchor=("1", P(38, 25)))
+    sh.path(c1["2"], P(34, 25), r3["1"])
+    sh.junction(P(34, 25))
+    stub(sh, P(34, 25), UP, "H:AUDIO", 2)
+    d3 = put("D3", rot=270, anchor=("2", P(44, 24)))
+    d4 = put("D4", rot=270, anchor=("1", P(44, 26)))
+    c4 = put("C4", rot=90, anchor=("1", P(72, 25)))
+    sh.rail([r3["2"], P(44, 25), P(66, 25), c4["1"]])
+    sh.path(P(44, 25), d3["2"])
+    sh.path(P(44, 25), d4["1"])
+    stub(sh, d3["1"], UP, "+5V", 2)
+    stub(sh, d4["2"], DOWN, "GND", 2)
+
+    # --- Tone injection: 2-pole RC + level trimmer ----------------------------
+    sh.text("Tone injection", P(49, 31.5))
+    term(sh, "H:TONE", P(38, 34), LEFT)
+    r4 = put("R4", rot=90, anchor=("1", P(40, 34)))
+    sh.path(P(38, 34), r4["1"])
+    r5 = put("R5", rot=90, anchor=("1", P(49, 34)))
+    r6 = put("R6", rot=90, anchor=("1", P(56, 34)))
+    rv1 = put("RV1", rot=90, anchor=("1", P(61, 34)))
+    sh.path(r4["2"], P(47, 34), r5["1"])
+    sh.path(r5["2"], P(54, 34), r6["1"])
+    sh.path(r6["2"], rv1["1"])
+    for ref, x in (("C2", 47), ("C3", 54)):
+        c = put(ref, anchor=("1", P(x, 36)))
+        sh.junction(P(x, 34))
+        sh.path(P(x, 34), c["1"])
+        stub(sh, c["2"], DOWN, "GND", 1)
+    sh.path(rv1["3"], P(66, 34), P(66, 31.5), P(66, 25))
+    sh.path(rv1["2"], P(62.5, 31.5), P(66, 31.5))
+    sh.junction(P(66, 31.5))
+
+    # --- DTMF receiver ----------------------------------------------------------
+    sh.text("DTMF receiver (TOE tied to StD)", P(76, 18))
+    u2 = put("U2", anchor=("18", P(90, 33)))
+    r7 = put("R7", anchor=("1", P(78, 26)))
+    sh.path(c4["2"], P(78, 25), r7["1"])
+    sh.path(r7["2"], P(78, 36))
+    sh.path(u2["2"], P(78, 36))
+    sh.junction(P(78, 36))
+    r8 = put("R8", rot=270, anchor=("1", P(81, 39)))
+    sh.path(u2["3"], P(81, 37), r8["1"])
+    sh.path(r8["2"], P(78, 39), P(78, 36))
+    stub(sh, u2["1"], LEFT, "VREF", 1)
+    stub(sh, u2["4"], LEFT, "VREF", 1)
+    sh.path(u2["5"], P(84, 40), P(84, 41))
+    sh.path(u2["6"], P(84, 41), P(83, 41))
+    sh.junction(P(84, 41))
+    term(sh, "GND", P(83, 41), LEFT)
+    y1 = put("Y1", rot=270, anchor=("1", P(72, 43)))
+    sh.path(u2["7"], y1["1"])
+    sh.path(u2["8"], P(82, 44), P(82, 46), y1["2"])
+    c6 = put("C6", rot=90, anchor=("1", P(94, 29)))
+    sh.path(u2["18"], P(90, 29), c6["1"])
+    sh.junction(P(90, 29))
+    stub(sh, P(90, 29), UP, "+5V", 2)
+    stub(sh, c6["2"], RIGHT, "GND", 1)
+    stub(sh, u2["9"], DOWN, "GND", 2)
+    stub(sh, u2["10"], RIGHT, "H:STD", 1)
+    stub(sh, u2["15"], RIGHT, "H:STD", 1)
+    for pin, net in (("11", "MQ1"), ("12", "MQ2"), ("13", "MQ3"), ("14", "MQ4"),
+                     ("16", "EST"), ("17", "STGT")):
+        stub(sh, u2[pin], RIGHT, net, 1)
+    # Guard time: ESt -> R9 -> St/GT, C5 to VDD.
+    r9 = put("R9", rot=90, anchor=("1", P(106, 48)))
+    stub(sh, r9["1"], LEFT, "EST", 2)
+    c5 = put("C5", anchor=("2", P(111, 47)))
+    sh.path(r9["2"], P(111, 48), P(113, 48))
+    sh.path(P(111, 48), c5["2"])
+    sh.junction(P(111, 48))
+    term(sh, "STGT", P(113, 48), RIGHT)
+    stub(sh, c5["1"], UP, "+5V", 2)
+    # Q outputs through 1k to the shared bus.
+    for i, ref in enumerate(("R10", "R11", "R12", "R13")):
+        y = 54 + 4 * i
+        r = put(ref, rot=90, anchor=("1", P(103, y)))
+        stub(sh, r["1"], LEFT, f"MQ{i + 1}", 2)
+        stub(sh, r["2"], RIGHT, f"H:Q{i + 1}", 2)
+
+    # --- Line jack, TVS and ring relay -------------------------------------------
+    sh.text("Line jack, TVS and ring relay (drawn at rest: NC)", P(8, 44))
+    j1 = put("J1", anchor=("4", P(14, 68)))
+    k1 = put("K1", anchor=("4", P(40, 59)))
+    d2 = put("D2", rot=270, anchor=("1", P(24, 67)))
+    sh.path(j1["4"], P(16, 68), P(16, 64), P(24, 64), P(40, 64), k1["4"])
+    sh.path(j1["3"], P(17, 69), P(17, 74), P(24, 74), P(44, 74), k1["13"])
+    sh.junction(P(24, 64))
+    sh.junction(P(24, 74))
+    sh.path(P(24, 64), d2["1"])
+    sh.path(d2["2"], P(24, 74))
+    stub(sh, k1["1"], UP, "+12V", 2)
+    stub(sh, k1["16"], LEFT, "H:RING_COIL", 2)
+    stub(sh, k1["6"], UP, "TIP_FEED", 2)
+    stub(sh, k1["8"], UP, "H:RING_B", 2)
+    stub(sh, k1["11"], UP, "RING_RET", 2)
+    stub(sh, k1["9"], UP, "H:RING_A", 2)
+
+    # --- Off-hook detector (opto in the return leg) -----------------------------
+    sh.text("Off-hook detector (return leg)", P(50, 60))
+    u1 = put("U1", anchor=("1", P(59, 65)))
+    d1 = put("D1", rot=270, anchor=("1", P(53, 66)))
+    term(sh, "RING_RET", P(50, 65), LEFT)
+    sh.path(P(50, 65), P(53, 65), u1["1"])
+    sh.junction(P(53, 65))
+    sh.path(P(53, 65), d1["1"])
+    sh.path(d1["2"], P(53, 71))
+    sh.path(u1["2"], P(59, 71))
+    sh.path(u1["3"], P(65, 71))
+    sh.rail([P(53, 71), P(59, 71), P(65, 71)])
+    stub(sh, P(59, 71), DOWN, "GND", 2)
+    stub(sh, u1["4"], RIGHT, "H:OFFHOOK", 3)
+
+
 DRAW = {"power": draw_power}
 
 
@@ -685,8 +864,7 @@ def build():
 
     line.offset = (4, 6)
     line.pwr_paths = lambda n: [(paths[0], next_pwr()), (paths[1], next_pwr())]
-    for part in LINE:
-        line.place(part, line_refs, LINE_HIER)
+    draw_line(line, line_refs)
     line.text("TIP/RING: 48 V and ring (+-48 V) - keep clearance from the logic side.", (10 * GRID, 110 * GRID))
 
     # Root: sheet symbols.

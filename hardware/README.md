@@ -13,7 +13,7 @@ python3 hardware/tools/gen_schematic.py
 El script (`hardware/tools/gen_schematic.py`) tiene la lista de componentes y la red de cada
 pata, bloque por bloque. Cada hoja se dibuja de una de dos formas:
 
-- **Con cables** (hoy: `power`): una función de dibujo ubica cada componente y une las patas
+- **Con cables** (hoy: `power` y `line`): una función de dibujo ubica cada componente y une las patas
   con cables, puntos de unión y rieles de alimentación, como un esquemático hecho a mano.
 - **Con etiquetas** (el resto, por ahora): cada pata lleva un tramo corto de cable con el
   nombre de su red. Es correcto, pero menos legible.
@@ -64,6 +64,6 @@ Referencias: L1 usa la serie 100 (R101, U102…) y L2 la serie 200.
 - [ ] Valores finales de `V_LINE`, R_SENSE, acople y nivel de tono (salen de la prueba de banco).
 - [ ] Huella alternativa del transformador 600:600 en paralelo con el capacitor de acople (spec §7.4).
 - [ ] Elevador propio en la placa, en lugar del módulo.
-- [x] Dibujo con cables: `power`.
-- [ ] Dibujo con cables: `mcu`, `ring`, `link`, `line`.
+- [x] Dibujo con cables: `power`, `line`.
+- [ ] Dibujo con cables: `mcu`, `ring`, `link`.
 - [ ] PCB: separar la zona de alta tensión (`V_LINE`, puente, relés, RJ11) de la lógica.
