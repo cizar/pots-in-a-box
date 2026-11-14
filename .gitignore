@@ -1,2 +1,9 @@
 firmware/build/
 .superpowers/
+
+# KiCad
+hardware/kicad/*-backups/
+hardware/kicad/fp-info-cache
+hardware/kicad/*.kicad_prl
+hardware/kicad/_autosave-*
+__pycache__/

@@ -21,14 +21,16 @@ Telephone Service*) ya no existe: esta caja la simula entera.
 
 - **Firmware:** completo y probado en la PC (`make -C firmware test`). Todavía no se probó en
   hardware.
-- **Hardware:** en prueba de banco ([docs/prueba-banco.md](docs/prueba-banco.md)). El
-  esquemático y el PCB en KiCad vienen después.
+- **Hardware:** en prueba de banco ([docs/prueba-banco.md](docs/prueba-banco.md)). Primer
+  esquemático completo en KiCad, con verificación eléctrica sin errores; el PCB viene después
+  de la prueba de banco.
 
 ## Documentación
 
 - [Diseño](docs/superpowers/specs/2026-11-13-pots-2-lineas-design.md)
 - [Firmware: cómo compilar y grabar, mapa de pines](firmware/README.md)
 - [Prueba de banco](docs/prueba-banco.md)
+- [Hardware: esquemático en KiCad](hardware/README.md)
 
 ## Seguridad
 

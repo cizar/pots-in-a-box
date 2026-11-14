@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "pots")(type "KiCad")(uri "${KIPRJMOD}/pots.kicad_sym")(options "")(descr "POTS in a box parts"))
+)
