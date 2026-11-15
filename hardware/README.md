@@ -59,10 +59,36 @@ Referencias: L1 usa la serie 100 (R101, U102…) y L2 la serie 200.
   de encendido y de llamada están en la placa, a reubicar según la caja.
 - **Jack de 12 V:** pata 1 = centro (+). Verificar contra el jack que se compre.
 
+## PCB preliminar (para elegir el gabinete)
+
+`hardware/kicad/pots-in-a-box.kicad_pcb` es una **ubicación inicial, sin rutear**, generada
+desde el esquemático:
+
+```sh
+/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3 hardware/tools/gen_pcb.py
+```
+
+Sirve para definir el tamaño de la placa, dónde van los conectores y qué altura tienen los
+componentes, para elegir o diseñar el gabinete. No sirve para fabricar.
+
+- Placa de 160 × 100 mm, 2 capas, 4 agujeros M3 a 4 mm de cada borde.
+- **Panel trasero:** RJ11 L1 (centro en x = 22 mm), jack de 12 V (x = 80 mm) y RJ11 L2 (x = 138 mm).
+- **Panel frontal:** LED PWR (x = 66 mm), conector de la llave AR/US (x = 80 mm) y LED CALL (x = 94 mm).
+- Bloques: línea L1 a la izquierda, línea L2 a la derecha, alimentación al centro atrás, MCU al
+  centro adelante, puente H adelante a la izquierda, relé de unión y ULN2003A adelante a la derecha.
+- Hay un rectángulo libre reservado para el elevador propio (31 × 26 mm).
+- La biblioteca de KiCad no tiene modelo 3D del RJ12: `hardware/kicad/3d/rj12_body.wrl` es una
+  caja de las medidas del conector, solo para el render.
+- Ver en 3D: abrir el PCB en KiCad y usar Ver → Visor 3D (Alt+3).
+
+Cuando se congele el esquemático, el PCB también pasa a editarse en KiCad: la ubicación final y
+el ruteo se hacen a mano y este script queda como histórico.
+
 ## Pendiente
 
 - [ ] Valores finales de `V_LINE`, R_SENSE, acople y nivel de tono (salen de la prueba de banco).
 - [ ] Huella alternativa del transformador 600:600 en paralelo con el capacitor de acople (spec §7.4).
 - [ ] Elevador propio en la placa, en lugar del módulo.
 - [x] Dibujo con cables en todas las hojas.
+- [x] PCB preliminar sin rutear, para el gabinete.
 - [ ] PCB: separar la zona de alta tensión (`V_LINE`, puente, relés, RJ11) de la lógica.
