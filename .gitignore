@@ -7,3 +7,11 @@ hardware/kicad/fp-info-cache
 hardware/kicad/*.kicad_prl
 hardware/kicad/_autosave-*
 __pycache__/
+hardware/kicad/~*.lck
+hardware/kicad/.history/
+hardware/kicad/DRC.rpt
+hardware/kicad/temp-freerouting.dsn
+hardware/kicad/*.bak
+
+# macOS
+.DS_Store

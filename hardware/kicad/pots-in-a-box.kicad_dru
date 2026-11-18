@@ -1,0 +1,13 @@
+(version 1)
+
+# The HV net class asks for 0.6 mm (IPC-2221, external, up to 150 V). The pins of
+# the loop-feed transistors (TO-126 MJE340, TO-92 BC546) are closer than that by
+# package design, and each part is rated for the voltage between its own pins, so
+# pads of the same part are held to the default clearance only. One rule per part
+# so that two neighbouring parts never relax each other. Add a line per new line.
+(rule "loop feed Q1 pins"
+  (condition "(A.memberOfFootprint('Q101') && B.memberOfFootprint('Q101')) || (A.memberOfFootprint('Q201') && B.memberOfFootprint('Q201'))")
+  (constraint clearance (min 0.2mm)))
+(rule "loop feed Q2 pins"
+  (condition "(A.memberOfFootprint('Q102') && B.memberOfFootprint('Q102')) || (A.memberOfFootprint('Q202') && B.memberOfFootprint('Q202'))")
+  (constraint clearance (min 0.2mm)))

@@ -16,6 +16,7 @@ import shutil
 import uuid
 from pathlib import Path
 
+import gen_bom
 import kicad_lib as kl
 
 ROOT = Path(__file__).resolve().parents[1] / "kicad"
@@ -50,6 +51,8 @@ FP = {
     "D15": "Diode_THT:D_DO-15_P10.16mm_Horizontal",
     "LED": "LED_THT:LED_D3.0mm",
     "TO92": "Package_TO_SOT_THT:TO-92_Inline",
+    # 2.54 mm pitch: room for HV-class tracks (0.6 mm clearance) between the pins
+    "TO92W": "Package_TO_SOT_THT:TO-92_Inline_Wide",
     "TO126": "Package_TO_SOT_THT:TO-126-3_Vertical",
     "TO220": "Package_TO_SOT_THT:TO-220-3_Vertical",
     "DIP4": "Package_DIP:DIP-4_W7.62mm",
@@ -217,13 +220,13 @@ LINE = [
     P("Q1", "Transistor_BJT:BD139", "MJE340", "TO126", (32, 12), {"1": "Q1E", "2": "FEED_C", "3": "Q1B"},
       "Pass transistor, 300 V, small heatsink"),
     two("R2", "R", "27", "R", (42, 14), "Q1E", "TIP_FEED", "R_SENSE: 0.65 V / 27 = 24 mA"),
-    P("Q2", "Transistor_BJT:BC546", "BC546", "TO92", (52, 10), {"1": "Q1B", "2": "Q1E", "3": "TIP_FEED"}),
+    P("Q2", "Transistor_BJT:BC546", "BC546", "TO92W", (52, 10), {"1": "Q1B", "2": "Q1E", "3": "TIP_FEED"}),
     # Off-hook opto in the return leg.
     P("U1", "Isolator:PC817", "PC817", "DIP4", (70, 40), {"1": "RING_RET", "2": "GND", "3": "GND", "4": "H:OFFHOOK"}),
     two("D1", "1N4148", "1N4148", "D35", (70, 52), "RING_RET", "GND", "Antiparallel to the opto LED"),
     # Audio coupling and protection.
     two("C1", "C", "2.2uF 250V", "C_FILM", (82, 14), "TIP_FEED", "H:AUDIO", "Film coupling capacitor (NC side)"),
-    two("R3", "R", "1k", "R", (92, 14), "H:AUDIO", "AUDIO_PROT"),
+    two("R3", "R", "1k", "R", (92, 14), "AUDIO_PROT", "H:AUDIO"),
     two("D3", "1N4148", "1N4148", "D35", (102, 8), "+5V", "AUDIO_PROT", "Clamp to +5 V"),
     two("D4", "1N4148", "1N4148", "D35", (102, 20), "AUDIO_PROT", "GND", "Clamp to GND"),
     # Tone injection: 2-pole RC filter + level trimmer.
@@ -240,16 +243,16 @@ LINE = [
         "8": "OSC2", "9": "GND", "10": "H:STD", "11": "MQ1", "12": "MQ2", "13": "MQ3", "14": "MQ4",
         "15": "H:STD", "16": "EST", "17": "STGT", "18": "+5V"}),
     two("C4", "C", "100nF", "C", (62, 64), "AUDIO_PROT", "INC"),
-    two("R7", "R", "100k", "R", (70, 64), "INC", "INM"),
+    two("R7", "R", "100k", "R", (70, 64), "INM", "INC"),
     two("R8", "R", "100k", "R", (70, 74), "GS", "INM", "Gain = 1"),
     two("Y1", "XTAL", "3.579545MHz", "XTAL", (70, 86), "OSC1", "OSC2"),
-    two("R9", "R", "300k", "R", (110, 80), "EST", "STGT", "Guard time"),
     two("C5", "C", "100nF", "C", (110, 70), "+5V", "STGT", "Guard time"),
     two("C6", "C", "100nF", "C", (62, 80), "+5V", "GND", "Decoupling"),
-    two("R10", "R", "1k", "R", (120, 58), "MQ1", "H:Q1"),
-    two("R11", "R", "1k", "R", (126, 58), "MQ2", "H:Q2"),
-    two("R12", "R", "1k", "R", (132, 58), "MQ3", "H:Q3"),
-    two("R13", "R", "1k", "R", (138, 58), "MQ4", "H:Q4"),
+    two("R9", "R", "1k", "R", (120, 58), "H:Q1", "MQ1"),
+    two("R10", "R", "1k", "R", (126, 58), "H:Q2", "MQ2"),
+    two("R11", "R", "1k", "R", (132, 58), "H:Q3", "MQ3"),
+    two("R12", "R", "1k", "R", (138, 58), "H:Q4", "MQ4"),
+    two("R13", "R", "300k", "R", (110, 80), "EST", "STGT", "Guard time"),
 ]
 LINE_HIER = {  # hierarchical label -> (shape, root net for L1, root net for L2)
     "OFFHOOK": ("output", "OFFHOOK_L1", "OFFHOOK_L2"),
@@ -697,14 +700,14 @@ def draw_line(sh, paths_fn):
     sh.path(P(22, 25), P(26, 25), c1["1"])
     sh.junction(P(26, 25))
     stub(sh, P(26, 25), UP, "TIP_FEED", 2)
-    r3 = put("R3", rot=90, anchor=("1", P(38, 25)))
-    sh.path(c1["2"], P(34, 25), r3["1"])
+    r3 = put("R3", rot=270, anchor=("2", P(38, 25)))  # pin 1 on the right: PCB labels line up
+    sh.path(c1["2"], P(34, 25), r3["2"])
     sh.junction(P(34, 25))
     stub(sh, P(34, 25), UP, "H:AUDIO", 2)
     d3 = put("D3", rot=270, anchor=("2", P(44, 24)))
     d4 = put("D4", rot=270, anchor=("1", P(44, 26)))
     c4 = put("C4", rot=90, anchor=("1", P(72, 25)))
-    sh.rail([r3["2"], P(44, 25), P(66, 25), c4["1"]])
+    sh.rail([r3["1"], P(44, 25), P(66, 25), c4["1"]])
     sh.path(P(44, 25), d3["2"])
     sh.path(P(44, 25), d4["1"])
     stub(sh, d3["1"], UP, "+5V", 2)
@@ -733,9 +736,9 @@ def draw_line(sh, paths_fn):
     # --- DTMF receiver ----------------------------------------------------------
     sh.text("DTMF receiver (TOE tied to StD)", P(76, 18))
     u2 = put("U2", anchor=("18", P(90, 33)))
-    r7 = put("R7", anchor=("1", P(78, 26)))
-    sh.path(c4["2"], P(78, 25), r7["1"])
-    sh.path(r7["2"], P(78, 36))
+    r7 = put("R7", rot=180, anchor=("2", P(78, 26)))  # pin 1 at the bottom: PCB labels line up
+    sh.path(c4["2"], P(78, 25), r7["2"])
+    sh.path(r7["1"], P(78, 36))
     sh.path(u2["2"], P(78, 36))
     sh.junction(P(78, 36))
     r8 = put("R8", rot=270, anchor=("1", P(81, 39)))
@@ -761,21 +764,21 @@ def draw_line(sh, paths_fn):
     for pin, net in (("11", "MQ1"), ("12", "MQ2"), ("13", "MQ3"), ("14", "MQ4"),
                      ("16", "EST"), ("17", "STGT")):
         stub(sh, u2[pin], RIGHT, net, 1)
-    # Guard time: ESt -> R9 -> St/GT, C5 to VDD.
-    r9 = put("R9", rot=90, anchor=("1", P(106, 48)))
-    stub(sh, r9["1"], LEFT, "EST", 2)
+    # Guard time: ESt -> R13 -> St/GT, C5 to VDD.
+    r13 = put("R13", rot=90, anchor=("1", P(106, 48)))
+    stub(sh, r13["1"], LEFT, "EST", 2)
     c5 = put("C5", anchor=("2", P(111, 47)))
-    sh.path(r9["2"], P(111, 48), P(113, 48))
+    sh.path(r13["2"], P(111, 48), P(113, 48))
     sh.path(P(111, 48), c5["2"])
     sh.junction(P(111, 48))
     term(sh, "STGT", P(113, 48), RIGHT)
     stub(sh, c5["1"], UP, "+5V", 2)
     # Q outputs through 1k to the shared bus.
-    for i, ref in enumerate(("R10", "R11", "R12", "R13")):
+    for i, ref in enumerate(("R9", "R10", "R11", "R12")):
         y = 54 + 4 * i
-        r = put(ref, rot=90, anchor=("1", P(103, y)))
-        stub(sh, r["1"], LEFT, f"MQ{i + 1}", 2)
-        stub(sh, r["2"], RIGHT, f"H:Q{i + 1}", 2)
+        r = put(ref, rot=270, anchor=("2", P(103, y)))  # pin 1 on the bus side: PCB labels line up
+        stub(sh, r["2"], LEFT, f"MQ{i + 1}", 2)
+        stub(sh, r["1"], RIGHT, f"H:Q{i + 1}", 2)
 
     # --- Line jack, TVS and ring relay -------------------------------------------
     sh.text("Line jack, TVS and ring relay (drawn at rest: NC)", P(8, 44))
@@ -1182,9 +1185,11 @@ def sheet_instances(n):
 
 def write_project_files():
     tpl = Path("/Applications/KiCad/KiCad.app/Contents/SharedSupport/template/kicad.kicad_pro")
-    pro = json.loads(tpl.read_text())
-    pro.setdefault("meta", {})["filename"] = f"{PROJECT}.kicad_pro"
-    (ROOT / f"{PROJECT}.kicad_pro").write_text(json.dumps(pro, indent=2) + "\n")
+    project = ROOT / f"{PROJECT}.kicad_pro"
+    if not project.exists():  # it holds the net classes and DRC settings: never overwrite it
+        pro = json.loads(tpl.read_text())
+        pro.setdefault("meta", {})["filename"] = f"{PROJECT}.kicad_pro"
+        project.write_text(json.dumps(pro, indent=2) + "\n")
     (ROOT / "sym-lib-table").write_text(
         '(sym_lib_table\n  (version 7)\n  (lib (name "pots")(type "KiCad")(uri "${KIPRJMOD}/pots.kicad_sym")(options "")(descr "POTS in a box parts"))\n)\n')
 
@@ -1200,3 +1205,4 @@ if __name__ == "__main__":
         print("problems:")
         for m in missing:
             print("  ", m)
+    gen_bom.main()

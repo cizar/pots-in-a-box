@@ -19,6 +19,57 @@ El firmware es el de `firmware/`, sin cambios. Mapa de pines en `firmware/README
 
 ---
 
+## 0. Referencia: la central comercial
+
+Antes del banco se midió una central comercial chica con la que los módems retro ya
+funcionan bien: una **NEXO** hogareña de 1 línea externa y 4 internos (I30–I33). Por lo que se
+ve en su placa:
+
+- **Batería de 24 V** con un regulador 7824.
+- **Ring tomada de un bobinado de 55 V ca** del transformador de red, y por eso de 50 Hz.
+- **Un limitador de corriente con transistores y zener por interno.**
+- **Un solo decodificador DTMF** (UM92870A, equivalente al MT8870, con cristal de 3,58 MHz)
+  para todos los internos.
+- **Una matriz de cruce analógica CD22100E** (4×4, DIP-16) que conecta el audio entre internos,
+  la línea externa y el decodificador.
+- **Relés solo del lado de la línea externa;** la ring de los internos la conmuta sin relés.
+
+La matriz y el DTMF compartido son una referencia para una versión de 4 u 8 líneas.
+
+La central sirve como objetivo: si nuestra línea da valores parecidos, los módems deberían
+andar igual. Mediciones del 17 de noviembre de 2026, sobre los dos hilos de un mismo
+interno:
+
+| Medición | Valor | Cómo |
+|---|---|---|
+| Tensión colgado | 23,45 V | téster en continua entre los dos hilos, sin nada conectado |
+| Tensión descolgado | 6,2 V | téster en continua, con un teléfono descolgado |
+| Corriente de lazo descolgado | 23,8 mA (teléfono y módem igual) | téster en mA, en serie con un hilo |
+| Corriente colgado | 0 mA | ídem |
+| Ring | ~162 Vpp, entre ~22 V y 184 V: unos ±81 V pico (~57 V rms) sobre unos 100 V de continua | osciloscopio (OWON HDS272S) entre los dos hilos, disparo en 60 V |
+| Frecuencia de ring | ~50 Hz | contada en pantalla: un ciclo en 4 divisiones de 5 ms |
+
+Qué se saca de ahí:
+
+- **La central da la misma corriente con un teléfono y con un módem**, así que limita la
+  corriente, igual que el limitador de §1.2. Nuestros 24 mA (R_SENSE de 27 Ω) ya la imitan.
+- **Para la alimentación, 24 V alcanzan:** el teléfono necesita 6,2 V y el limitador, el
+  PC817 y el sensado suman unos 3 V más. Con 24 V también es menor el calor en Q1 (unos
+  0,6 W con la línea en corto, contra 1,2 W a 48 V).
+- **La ring de nuestra placa es una cuadrada de ±V del riel,** y en una cuadrada el valor rms
+  es igual al pico. Para igualar los ~57 V rms de la central alcanza con un riel de unos
+  **57–60 V**. Con el riel compartido a 48 V quedan 48 V rms, un poco menos: la validación 2
+  dice si alcanza.
+- **La TVS de línea tiene que quedar por encima del riel de ring.** La P6KE68CA empieza a
+  conducir entre 64 y 71 V: sirve hasta un riel de unos 55 V. Para un riel de ~60 V,
+  P6KE82CA; de 70–80 V, P6KE100CA; de 90 V, P6KE120CA (§1.6). Es el mismo encapsulado
+  (DO-15), así que el PCB no cambia.
+- El osciloscopio mostró F = 3,7 Hz porque promedió también el tramo plano antes de la
+  ring. Para medir la frecuencia, usar disparo **Single** a unos 50 V y 10 ms/div, y contar
+  los ciclos en pantalla.
+
+---
+
 ## 1. Circuito de prueba y lista de materiales
 
 Todos los valores son **de partida**: la idea de la prueba es ajustarlos. Todos los
@@ -119,6 +170,7 @@ Las gates se excitan así:
   cada cambio de fase. Si aparecen picos de conducción cruzada de más de unos microsegundos,
   aumentar la resistencia de 220 Ω de las gates de los N.
 - Si a 48 V el Modem 1200 no detecta la ring, ver el plan B en §1.6.
+- Como referencia, la central comercial de §0 hace sonar los mismos aparatos con unos 57 V rms.
 
 ### 1.4 Audio, tonos y DTMF (acople por capacitor)
 
